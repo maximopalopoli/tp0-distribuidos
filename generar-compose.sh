@@ -23,11 +23,11 @@ services:
 
 for ((i=1; i<=amountOfClients; i++)); do
     echo "client$i:
-    container_name: client1
+    container_name: client$i
     image: client:latest
     entrypoint: /client
     environment:
-      - CLI_ID=1
+      - CLI_ID=$i
       - CLI_LOG_LEVEL=DEBUG
     networks:
       - testing_net
