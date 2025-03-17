@@ -23,7 +23,7 @@ services:
 " > ${fileName}
 
 for ((i=1; i<=amountOfClients; i++)); do
-    echo "client$i:
+    echo "  client$i:
     container_name: client$i
     image: client:latest
     entrypoint: /client
