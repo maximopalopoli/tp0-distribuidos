@@ -2,6 +2,7 @@
 
 # Recibo el nombre del archivo de salida ($1) y la cantidad de clientes que debería tener ($2)
 
+# TODO: verificar de alguna forma que se hayan recibido parámetros
 fileName=$1
 amountOfClients=$2
 
