@@ -20,6 +20,8 @@ services:
       - LOGGING_LEVEL=DEBUG
     networks:
       - testing_net
+    volumes:
+      - ./server/config.ini:/config.ini
 " > ${fileName}
 
 for ((i=1; i<=amountOfClients; i++)); do
@@ -32,6 +34,8 @@ for ((i=1; i<=amountOfClients; i++)); do
       - CLI_LOG_LEVEL=DEBUG
     networks:
       - testing_net
+    volumes:
+      - ./client/config.yaml:/config.yaml
     depends_on:
       - server
 " >> ${fileName}
