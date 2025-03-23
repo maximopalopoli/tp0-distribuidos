@@ -51,6 +51,9 @@ def main():
     server = Server(port, listen_backlog)
     server.run()
 
+    # Shutdown the logging system to have a graceful shutdown
+    logging.shutdown()
+
 def initialize_log(logging_level):
     """
     Python custom logging initialization
