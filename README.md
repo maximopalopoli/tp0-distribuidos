@@ -194,3 +194,8 @@ El script ahora agrega los volumenes correspondientes a cada cliente o servidor.
 make docker-compose-up
 ```
 TODO: agregar una forma práctica de ver que está cambiando. Se puede probar haciendo `docker exec -it server sh`, modificando `server/config.ini`, y haciendo `cat` del archivo `/config.ini`, pero no se ve aplicado en la práctica. Capaz se puede levantar con el make pero después solo haciendo `docker compose -f docker-compose-dev.yaml stop -t 1`, cambiando en la config el número de logs y luego levantar y probar que la cantidad de logs cambia.
+
+### Ejercicio 3
+Como según la consigna `Netcat no debe ser instalado en la máquina host`, entonces para el script de validación voy a crear un cliente de prueba que instale netcat cuando se cree. Elegí usar busybox porque es una imagen ligera que incluye netcat dentro de su configuración.
+
+El cliente validador forma parte de la network, por lo que no es necesario exponer el puerto del servidor, y como se usa un container con netcat tampoco es necesario instalar netcat en el host.
