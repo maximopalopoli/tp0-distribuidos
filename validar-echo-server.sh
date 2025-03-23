@@ -1,16 +1,22 @@
 #!/bin/bash
 
-# Verificar el correcto funcionamiento del servidor utilizando el comando netcat para interactuar con el mismo.
-# Como es un echo server, se debe enviar un mensaje al servidor y esperar recibir el mismo mensaje enviado.
+# Levanto los contenedores en segundo plano y espero un tiempo para que el servidor esté listo
+make docker-compose-up
+sleep 5
 
 mensajeEnviado="validar-echo-server"
+server="server"
+puerto=12345
 
-# Envio el comando con netcat
+# Hacer netcat usando el cliente validador y guardar el resultado en una variable
+mensajeRecibido=$(docker run --rm --network=tp0_testing_net busybox sh -c "echo \"$mensajeEnviado\" | nc $server $puerto")
 
-# Verifico que lo recibido sea igual a lo enviado
+# Si el la respuesta es igual al mensaje enviado, entonces el flujo fue el correcto
+if [ "$mensajeRecibido" = "$mensajeEnviado" ]; then
+    echo "action: test_echo_server | result: success"
+else
+    echo "action: test_echo_server | result: fail"
+fi
 
-# If equal `action: test_echo_server | result: success`, else `action: test_echo_server | result: fail`
-
-# Constraints:
-# Netcat no debe ser instalado en la máquina host
-# No se pueden exponer puertos del servidor para realizar la comunicación (hint: docker network).
+# Cerrar los contenedores después de la prueba
+make docker-compose-down
