@@ -9,7 +9,7 @@ class Server:
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(('', port))
         self._server_socket.listen(listen_backlog)
-        self.should_shutdown = False
+        self.is_running = True
 
         signal.signal(signal.SIGTERM, self._handle_shutdown)
 
@@ -22,8 +22,7 @@ class Server:
         finishes, servers starts to accept new connections again
         """
 
-        # TODO: Change this attribute to a default positive value
-        while not self.should_shutdown:
+        while self.is_running:
             client_sock = self.__accept_new_connection()
             self.__handle_client_connection(client_sock)
 
@@ -68,7 +67,7 @@ class Server:
         Sets should_shutdown as true and closes server socket, also logging the shutdown.
         """
         logging.info(f"action: shutdown | signal: {signum} | result: in_progress")
-        self.should_shutdown = True
+        self.is_running = False
         self._server_socket.close()
         logging.info("action: shutdown | result: success")
         
