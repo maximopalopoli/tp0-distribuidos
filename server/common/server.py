@@ -60,7 +60,7 @@ class Server:
         logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
         return c
 
-    def _handle_shutdown(self, signum):
+    def _handle_shutdown(self, signum, _):
         """
         Handles SIGTERM signal to perform a graceful shutdown in case that signal is received.
 
