@@ -23,8 +23,17 @@ class Server:
         """
 
         while self.is_running:
-            client_sock = self.__accept_new_connection()
-            self.__handle_client_connection(client_sock)
+            try:
+                client_sock = self.__accept_new_connection()
+                # Dont handle the connection if accept failed
+                if client_sock:
+                    self.__handle_client_connection(client_sock)
+            except OSError as e:
+                if not self.is_running:
+                    logging.info("action: shutdown | result: server_stopped")
+                    break 
+                else:
+                    logging.error(f"action: accept_connection | result: fail | error: {e}") 
 
     def __handle_client_connection(self, client_sock):
         """
