@@ -39,10 +39,9 @@ func NewClient(config ClientConfig) *Client {
 	return client
 }
 
-// CreateClientSocket Initializes client socket. In case of
-// failure, error is printed in stdout/stderr and exit 1
-// is returned
-func (c *Client) createClientSocket() error {
+// CreateClientSocket Initializes client socket. In case of failure, error is printed in
+// stdout/stderr and exit 1 is returned
+func (c *Client) createClientSocket() {
 	conn, err := net.Dial("tcp", c.config.ServerAddress)
 	if err != nil {
 		log.Criticalf(
@@ -50,10 +49,8 @@ func (c *Client) createClientSocket() error {
 			c.config.ID,
 			err,
 		)
-		// return err? anyway it's going to happen, but in that case should not return error in this func
 	}
 	c.conn = conn
-	return nil
 }
 
 // StartClientLoop Send messages to the client until some time threshold is met or a SIGTERM is received
