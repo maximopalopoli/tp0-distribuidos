@@ -8,3 +8,5 @@ log:
   level: "INFO"
 batch:
   maxAmount: 10
+
+# TODO: Add business logic variables

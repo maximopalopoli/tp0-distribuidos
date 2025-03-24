@@ -29,6 +29,14 @@ type Client struct {
 	stop   chan struct{}
 }
 
+type Bet struct {
+	Nombre     string
+	Apellido   string
+	Documento  string
+	Nacimiento string
+	Numero     string
+}
+
 // NewClient Initializes a new client receiving the configuration
 // as a parameter
 func NewClient(config ClientConfig) *Client {
@@ -56,7 +64,7 @@ func (c *Client) createClientSocket() error {
 }
 
 // StartClientLoop Send messages to the client until some time threshold is met or a SIGTERM is received
-func (c *Client) StartClientLoop() {
+func (c *Client) StartClientLoop(betInfo Bet) {
 	c.handleSignals()
 
 	// There is an autoincremental msgID to identify every message sent
