@@ -199,3 +199,8 @@ TODO: agregar una forma práctica de ver que está cambiando. Se puede probar ha
 Como según la consigna `Netcat no debe ser instalado en la máquina host`, entonces para el script de validación voy a crear un cliente de prueba que instale netcat cuando se cree. Elegí usar busybox porque es una imagen ligera que incluye netcat dentro de su configuración.
 
 El cliente validador forma parte de la network, por lo que no es necesario exponer el puerto del servidor, y como se usa un container con netcat tampoco es necesario instalar netcat en el host.
+
+### Ejercicio 4
+Los cambios en el cliente y el servidor fueron los siguientes:
+- En el cliente se agregó el método `handleSignals()`, que crea una goroutine que queda a la espera de señales SIGTERM, y en caso de recibirla llama al método `StopClient()`, que cierra un canal `close`, que envía una señal al main loop que hace que se termine en la próxima iteración.
+- En el servidor, a través de la lib signal, en caso de recibir una señal SIGTERM se llama a la función `_handle_shutdown()`, que cierra el `_server_socket` y que setea la variable `should_shutdown` en true, haciendo que en la próxima iteración el main loop se detenga.
