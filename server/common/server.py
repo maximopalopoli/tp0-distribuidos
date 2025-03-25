@@ -2,6 +2,8 @@ import socket
 import logging
 import signal
 
+from server.common.utils import Bet, store_bets
+
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -54,6 +56,11 @@ class Server:
         finally:
             client_sock.close()
             logging.info("action: close_socket_client | result: sucess")
+
+        # Parse params in some way (do this after defining the protocol used)
+        bet = Bet()
+        store_bets([bet])
+        logging.info(f'action: apuesta_almacenada | result: success | dni: ${bet.document} | numero: ${bet.number}')
 
     def __accept_new_connection(self):
         """
