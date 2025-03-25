@@ -76,7 +76,7 @@ class Server:
             logging.info(f"action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}")
 
             # Send final ACK including dni and bet number
-            response = f"Ok|{bet.document}|{bet.number}\n".encode("utf-8")
+            response = f"OK|{bet.document}|{bet.number}\n".encode("utf-8")
             client_sock.sendall(response)
 
         except OSError as e:
