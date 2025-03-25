@@ -2,8 +2,17 @@ import socket
 import logging
 import signal
 
-from server.common.utils import Bet, store_bets
+from common.utils import Bet, store_bets
 
+def deserialize_bet(message: str):
+    fields = message.strip().split('|')
+    return {
+        "nombre": fields[0],
+        "apellido": fields[1],
+        "dni": fields[2],
+        "nacimiento": fields[3],
+        "numero": fields[4],
+    }
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -45,22 +54,36 @@ class Server:
         client socket will also be closed
         """
         try:
-            # TODO: Modify the receive to avoid short-reads
-            msg = client_sock.recv(1024).rstrip().decode('utf-8')
+            # Start receiving the agency id
+            agency_id = self.receive_data(client_sock)
+            if not agency_id:
+                logging.error(f'action: receive_message | result: fail | error: error while reading agency id')
             addr = client_sock.getpeername()
-            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {msg}')
-            # TODO: Modify the send to avoid short-writes
-            client_sock.send("{}\n".format(msg).encode('utf-8'))
+            logging.info(f'action: receive_id | result: success | ip: {addr[0]} | agency_id: {agency_id}')
+
+            # Send initial ACK with agency id
+            ack_message = f"OK|{agency_id}\n".encode("utf-8")
+            client_sock.sendall(ack_message)
+
+            # Receive and deserialize the rest of bet information
+            bet_message = self.receive_data(client_sock)
+            bet_data = deserialize_bet(bet_message)
+
+            # Create and store Bet
+            bet = Bet(agency_id, bet_data["nombre"], bet_data["apellido"], bet_data["dni"], bet_data["nacimiento"], bet_data["numero"])            
+            store_bets([bet])
+
+            logging.info(f"action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}")
+
+            # Send final ACK including dni and bet number
+            response = f"Ok|{bet.document}|{bet.number}\n".encode("utf-8")
+            client_sock.sendall(response)
+
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
         finally:
             client_sock.close()
-            logging.info("action: close_socket_client | result: sucess")
-
-        # Parse params in some way (do this after defining the protocol used)
-        bet = Bet()
-        store_bets([bet])
-        logging.info(f'action: apuesta_almacenada | result: success | dni: ${bet.document} | numero: ${bet.number}')
+            logging.info("action: close_socket_client | result: success")
 
     def __accept_new_connection(self):
         """
@@ -75,6 +98,18 @@ class Server:
         c, addr = self._server_socket.accept()
         logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
         return c
+
+    def receive_data(self, sock):
+        """Receives data until find a '\n', and returns the data read until that moment."""
+        received_msg = b""
+        while True:
+            data = sock.recv(1)
+            if not data:
+                break
+            received_msg += data
+            if data == b"\n":
+                break
+        return received_msg.decode("utf-8").strip()
 
     def _handle_shutdown(self, signum, _):
         """

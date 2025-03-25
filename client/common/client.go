@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -38,6 +39,11 @@ type Bet struct {
 	Agencia    string
 }
 
+// Example of serializing: "Santiago|Lorca|30904465|1999-03-17|7574\n"
+func SerializeBet(nombre, apellido, dni, nacimiento, numero string) string {
+	return fmt.Sprintf("%s|%s|%s|%s|%s\n", nombre, apellido, dni, nacimiento, numero)
+}
+
 // NewClient Initializes a new client receiving the configuration
 // as a parameter
 func NewClient(config ClientConfig) *Client {
@@ -68,8 +74,7 @@ func (c *Client) createClientSocket() error {
 func (c *Client) StartClientLoop(betInfo Bet) {
 	c.handleSignals()
 
-	// There is an autoincremental msgID to identify every message sent
-	// Messages if the message amount threshold has not been surpassed
+	// There is an autoincremental msgID to identify every message sent, messages are sent if the threshold has not been surpassed
 	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
 		select {
 		// This case implies a SIGTERM signal has bee received, so we should close gracefully this client
@@ -83,32 +88,44 @@ func (c *Client) StartClientLoop(betInfo Bet) {
 				// Connection failed, error already logged in createClientSocket method
 				return
 			}
+			defer c.conn.Close()
 
-			// TODO: Modify the send to avoid short-write
-			fmt.Fprintf(
-				c.conn,
-				"[CLIENT %v] Message N°%v\n",
-				c.config.ID,
-				msgID,
-			)
-			msg, err := bufio.NewReader(c.conn).ReadString('\n')
-			c.conn.Close()
-
+			// Send the config ID (agencyId) first
+			idMessage := fmt.Sprintf("%s\n", c.config.ID)
+			_, err = c.conn.Write([]byte(idMessage))
 			if err != nil {
-				log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
-					c.config.ID,
-					err,
-				)
+				log.Errorf("action: send_id | result: fail | error: %v", err)
 				return
 			}
 
-			log.Infof("action: receive_message | result: success | client_id: %v | msg: %v",
-				c.config.ID,
-				msg,
-			)
+			// Read initial message's server ack response
+			reader := bufio.NewReader(c.conn)
+			ack, err := reader.ReadString('\n')
+			if err != nil || ack != fmt.Sprintf("OK|%s\n", c.config.ID) {
+				log.Errorf("action: receive_initial_ack | result: fail | error: %v", err)
+				return
+			}
 
-			// Wait a time between sending one message and the next one
-			time.Sleep(c.config.LoopPeriod)
+			// Send the rest of the bet information in the protocol format
+			message := SerializeBet(betInfo.Nombre, betInfo.Apellido, betInfo.Documento, betInfo.Nacimiento, betInfo.Numero)
+			_, err = c.conn.Write([]byte(message))
+			if err != nil {
+				log.Errorf("action: send_message | result: fail | error: %v", err)
+				return
+			}
+
+			// Read final ack, that includes an OK, the document and the bet number
+			finalAck, err := reader.ReadString('\n')
+			if err != nil {
+				log.Errorf("action: receive_final_ack | result: fail | client_id: %v | error: %v", c.config.ID, err)
+				return
+			}
+
+			ackFields := strings.Split(strings.TrimSpace(finalAck), "|")
+			documento := ackFields[1]
+			numero := ackFields[2]
+
+			log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", documento, numero)
 		}
 	}
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
