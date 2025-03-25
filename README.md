@@ -204,3 +204,11 @@ El cliente validador forma parte de la network, por lo que no es necesario expon
 Los cambios en el cliente y el servidor fueron los siguientes:
 - En el cliente se agregó el método `handleSignals()`, que crea una goroutine que queda a la espera de señales SIGTERM, y en caso de recibirla llama al método `StopClient()`, que cierra un canal `close`, que envía una señal al main loop que hace que se termine en la próxima iteración.
 - En el servidor, a través de la lib signal, en caso de recibir una señal SIGTERM se llama al método `_handle_shutdown()`, que cierra el `_server_socket` y que setea el atributo `is_running` en false, haciendo que en la próxima iteración el main loop se detenga.
+
+### Ejercicio 5
+El protocolo de comunicación definido entre cliente y servidor consta de los siguientes pasos:
+1. El cliente inicia la comunicación enviando su config id, que es el id de agencia
+2. El servidor recibe ese mensaje y le devuelve un primer ACK, que incluye el Id para verificación, de formato `OK|ID\n`.
+3. Después de recibir y verificar el Id, el cliente envía el resto de la información sobre la apuesta, en el formato de serialización: `Santiago|Lorca|30904465|1999-03-17|7574\n`
+4. El servidor entonces guarda la apuesta, y en caso de éxito, envía un ACK al cliente que incluye el DNI y el número de apuesta.
+5. El cliente recibe ese ACK y termina el ciclo del protocolo.
