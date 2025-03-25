@@ -2,11 +2,16 @@
 server:
   address: "server:12345"
 loop:
-  amount: 5
+  amount: 1
   period: "5s"
 log:
   level: "INFO"
 batch:
   maxAmount: 10
 
-# TODO: Add business logic variables
+# Business logic variables
+nombre: "Santiago Lionel"
+apellido: "Lorca"
+documento: "30904465"
+nacimiento: "1999-03-17"
+numero: "7574"
