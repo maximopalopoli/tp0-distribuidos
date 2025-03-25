@@ -124,6 +124,7 @@ func main() {
 		Documento:  v.GetString("documento"),
 		Nacimiento: v.GetString("nacimiento"),
 		Numero:     v.GetString("numero"),
+		Agencia:    v.GetString("id"),
 	}
 
 	client := common.NewClient(clientConfig)

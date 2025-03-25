@@ -35,6 +35,7 @@ type Bet struct {
 	Documento  string
 	Nacimiento string
 	Numero     string
+	Agencia    string
 }
 
 // NewClient Initializes a new client receiving the configuration
