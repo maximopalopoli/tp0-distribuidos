@@ -103,12 +103,17 @@ func (c *Client) StartClientLoop() {
 				return
 			}
 
+			if len(betsBatch) == 0 {
+				log.Infof("action: send_batches | result: success | client_id: %v", c.config.ID)
+				return
+			}
+
 			err = c.sendBetsBatch(betsBatch)
 			if err != nil {
 				log.Errorf("action: send_batch | result: fail | error: %v", err)
 				return
 			}
-			time.Sleep(time.Millisecond * 250)
+			//time.Sleep(time.Millisecond * 250)
 		}
 	}
 }
@@ -165,6 +170,9 @@ func (c *Client) readBetsBatch(reader *bufio.Reader) ([]Bet, error) {
 }
 
 func (c *Client) sendBetsBatch(betsBatch []Bet) error {
+	if len(betsBatch) == 0 {
+		return nil
+	}
 
 	// Create the connection the server in every loop iteration. Send an
 	err := c.createClientSocket()
@@ -203,7 +211,7 @@ func (c *Client) sendBetsBatch(betsBatch []Bet) error {
 		return err
 	}
 
-	log.Infof("action: apuesta_enviada | result: success")
+	log.Infof("action: apuesta_enviada | result: success | bets_number: %v", len(betsBatch))
 
 	return nil
 }
