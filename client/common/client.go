@@ -3,6 +3,7 @@ package common
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/signal"
@@ -96,31 +97,40 @@ func (c *Client) StartClientLoop() {
 			return
 		default:
 
-			betsBatch := c.readBetsBatch(fileReader)
+			betsBatch, err := c.readBetsBatch(fileReader)
+			if err != nil {
+				log.Errorf("action: read_batch | result: fail | error: %v", err)
+				return
+			}
 
 			err = c.sendBetsBatch(betsBatch)
 			if err != nil {
 				log.Errorf("action: send_batch | result: fail | error: %v", err)
 				return
 			}
-			time.Sleep(time.Second * 5)
+			time.Sleep(time.Millisecond * 250)
 		}
 	}
 }
 
-func (c *Client) readBetsBatch(reader *bufio.Reader) []Bet {
+func (c *Client) readBetsBatch(reader *bufio.Reader) ([]Bet, error) {
 	betsBatch := []Bet{}
 	currentBatchWeight := 0
 
 	for {
 		betData, err := reader.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
-			break // Supposing that an error here implies file ended. TODO: Check allowed errors
+			return []Bet{}, err
 		}
 
 		// The data in the file is separated by comma values, so get fields by splitting by comma
 		betFields := strings.Split(strings.TrimSpace(betData), ",")
-		// Supposing fields have a length of five
+		if len(betFields) < 5 {
+			continue
+		}
 
 		betInfo := Bet{
 			Nombre:     betFields[0],
@@ -151,7 +161,7 @@ func (c *Client) readBetsBatch(reader *bufio.Reader) []Bet {
 		}
 	}
 
-	return betsBatch
+	return betsBatch, nil
 }
 
 func (c *Client) sendBetsBatch(betsBatch []Bet) error {
