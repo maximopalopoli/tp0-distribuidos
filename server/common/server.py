@@ -77,7 +77,7 @@ class Server:
                 bet_data = deserialize_bet(bet_message)
                 if len(bet_data) < 5:
                     logging.error(f"action: apuesta_recibida | result: fail | cantidad: ${i}")
-                    break
+                    return
             
                 # Create and store Bet
                 bet = Bet(agency_id, bet_data["nombre"], bet_data["apellido"], bet_data["dni"], bet_data["nacimiento"], bet_data["numero"])            
