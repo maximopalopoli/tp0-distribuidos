@@ -71,7 +71,7 @@ func (c *Client) createClientSocket() error {
 }
 
 // StartClientLoop Send messages to the client until some time threshold is met or a SIGTERM is received
-func (c *Client) StartClientLoop(betInfo Bet) {
+func (c *Client) StartClientLoop() {
 	c.handleSignals()
 
 	// Open the data file to read the bets
