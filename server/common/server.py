@@ -82,7 +82,7 @@ class Server:
 
             store_bets(received_bets)
             
-            logging.info(f"action: apuestas_almacenadas | result: success | agency: {bet.agency} | bets_amount: {bets_amount}")
+            logging.info(f"action: apuestas_almacenadas | result: success | agency: {agency_id} | bets_amount: {bets_amount}")
 
             # Send final ACK including dni and bet number
             response = f"OK\n".encode("utf-8")
