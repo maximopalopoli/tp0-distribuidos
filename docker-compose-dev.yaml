@@ -23,6 +23,7 @@ services:
       - testing_net
     volumes:
       - ./client/config.yaml:/config.yaml
+      - ./.data:/data
     depends_on:
       - server
 
@@ -37,6 +38,7 @@ services:
       - testing_net
     volumes:
       - ./client/config.yaml:/config.yaml
+      - ./.data:/data
     depends_on:
       - server
 
@@ -46,4 +48,3 @@ networks:
       driver: default
       config:
         - subnet: 172.25.125.0/24
-
