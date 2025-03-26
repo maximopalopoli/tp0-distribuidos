@@ -55,28 +55,37 @@ class Server:
         """
         try:
             # Start receiving the agency id
-            agency_id = self.receive_data(client_sock)
-            if not agency_id:
+            init_msg_data = self.receive_data(client_sock)
+            if not init_msg_data:
                 logging.error(f'action: receive_message | result: fail | error: error while reading agency id')
             addr = client_sock.getpeername()
-            logging.info(f'action: receive_id | result: success | ip: {addr[0]} | agency_id: {agency_id}')
+
+            init_fields = init_msg_data.strip().split('|')
+            agency_id = init_fields[0]
+            bets_amount = int(init_fields[1])
+            logging.info(f'action: receive_id | result: success | ip: {addr[0]} | agency_id: {agency_id}| bets_amount: {bets_amount}')
 
             # Send initial ACK with agency id
             ack_message = f"OK|{agency_id}\n".encode("utf-8")
             client_sock.sendall(ack_message)
 
+            received_bets = []
             # Receive and deserialize the rest of bet information
-            bet_message = self.receive_data(client_sock)
-            bet_data = deserialize_bet(bet_message)
+            for i in range(bets_amount):
+                # Receive raw data from socket
+                bet_message = self.receive_data(client_sock)
+                bet_data = deserialize_bet(bet_message)
+            
+                # Create and store Bet
+                bet = Bet(agency_id, bet_data["nombre"], bet_data["apellido"], bet_data["dni"], bet_data["nacimiento"], bet_data["numero"])            
+                received_bets.append(bet)
 
-            # Create and store Bet
-            bet = Bet(agency_id, bet_data["nombre"], bet_data["apellido"], bet_data["dni"], bet_data["nacimiento"], bet_data["numero"])            
-            store_bets([bet])
-
-            logging.info(f"action: apuesta_almacenada | result: success | dni: {bet.document} | numero: {bet.number}")
+            store_bets(received_bets)
+            
+            logging.info(f"action: apuestas_almacenadas | result: success | agency: {bet.agency} | bets_amount: {bets_amount}")
 
             # Send final ACK including dni and bet number
-            response = f"OK|{bet.document}|{bet.number}\n".encode("utf-8")
+            response = f"OK\n".encode("utf-8")
             client_sock.sendall(response)
 
         except OSError as e:
