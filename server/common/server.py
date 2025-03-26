@@ -76,7 +76,7 @@ class Server:
                 bet_message = self.receive_data(client_sock)
                 bet_data = deserialize_bet(bet_message)
                 if len(bet_data) < 5:
-                    logging.error(f"action: apuesta_recibida | result: fail | cantidad: ${i}")
+                    logging.error(f"action: apuesta_recibida | result: fail | cantidad: {i}")
                     return
             
                 # Create and store Bet
@@ -85,7 +85,7 @@ class Server:
 
             store_bets(received_bets)
             
-            logging.info(f"action: apuesta_recibida | result: success | cantidad: ${bets_amount}")
+            logging.info(f"action: apuesta_recibida | result: success | cantidad: {bets_amount}")
 
             # Send final ACK including dni and bet number
             response = f"OK\n".encode("utf-8")
