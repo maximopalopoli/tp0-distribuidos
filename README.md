@@ -212,3 +212,11 @@ El protocolo de comunicación definido entre cliente y servidor consta de los si
 3. Después de recibir y verificar el Id, el cliente envía el resto de la información sobre la apuesta, en el formato de serialización: `Santiago|Lorca|30904465|1999-03-17|7574\n`
 4. El servidor entonces guarda la apuesta, y en caso de éxito, envía un ACK al cliente que incluye el DNI y el número de apuesta.
 5. El cliente recibe ese ACK y termina el ciclo del protocolo.
+
+### Ejercicio 6
+El protocolo implementado es similar al del ejercicio anterior, pero difiere en algunas cosas. La principal es que ahora el cliente va a tener varias comunicaciones con el servidor, y en cada una va a enciar un batch de apuestas, definido por la cantidad o por el peso del batch. Los pasos de cada comunicación son los siguientes:
+1. El cliente inicia la comunicación enviando su id de agencia y la cantidad de apuestas en el batch
+2. El servidor recibe dicho mensaje y le devuelve un primer ACK, que incluye el Id para verificación, de formato `OK|ID\n`.
+3. Después de recibir y verificar el Id, el cliente envía todas las apuestas que contiene el batch, que además de separar sus campos con el caracter `|`, va a separar entre apuestas con el caracter de fin de línea (`\n`), que va a servir para que el servidor lea de fin de línea a fin de línea. Un ejemplo del formato sería el siguiente: `Santiago|Lorca|30904465|1999-03-17|7574\nFacundo Benjamin|Pérez|27469637|1990-12-16|6386\n`.
+4. Una vez que recibió tantas apuestas como se informaban al principio de la comunicación, el servidor va a enviar un ACK simple.
+5. El cliente recibe ese ACK y termina el ciclo del protocolo, para volver a empezar si hay más filas para leer en el archivo de data.
