@@ -37,7 +37,6 @@ type Bet struct {
 	Documento  string
 	Nacimiento string
 	Numero     string
-	Agencia    string
 }
 
 // Example of serializing: "Santiago|Lorca|30904465|1999-03-17|7574\n"
@@ -129,15 +128,13 @@ func (c *Client) readBetsBatch(reader *bufio.Reader) []Bet {
 			Documento:  betFields[2],
 			Nacimiento: betFields[3],
 			Numero:     betFields[4],
-			Agencia:    c.config.ID,
 		}
 
 		betsBatch = append(betsBatch, betInfo)
 
 		// Analize replacing this with SerializeBet fn
 		betWeight := len(
-			fmt.Sprintf("%s|%s|%s|%s|%s|%s\n",
-				betInfo.Agencia,
+			fmt.Sprintf("%s|%s|%s|%s|%s\n",
 				betInfo.Nombre,
 				betInfo.Apellido,
 				betInfo.Documento,
