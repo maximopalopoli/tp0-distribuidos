@@ -36,6 +36,7 @@ for ((i=1; i<=amountOfClients; i++)); do
       - testing_net
     volumes:
       - ./client/config.yaml:/config.yaml
+      - ./.data:/data
     depends_on:
       - server
 " >> ${fileName}
