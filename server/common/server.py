@@ -2,7 +2,7 @@ import socket
 import logging
 import signal
 
-from common.utils import Bet, store_bets
+from common.utils import Bet, has_won, load_bets, store_bets
 
 def deserialize_bet(message: str):
     fields = message.strip().split('|')
@@ -22,6 +22,8 @@ class Server:
         self._server_socket.listen(listen_backlog)
         self.is_running = True
 
+        self.finished_agencies = []
+
         signal.signal(signal.SIGTERM, self._handle_shutdown)
 
     def run(self):
@@ -39,6 +41,9 @@ class Server:
                 # Dont handle the connection if accept failed
                 if client_sock:
                     self.__handle_client_connection(client_sock)
+                if len(self.finished_agencies) == 5:
+                    self.send_winners()
+
             except OSError as e:
                 if not self.is_running:
                     logging.info("action: shutdown | result: server_stopped")
@@ -61,6 +66,8 @@ class Server:
             addr = client_sock.getpeername()
 
             init_fields = init_msg_data.strip().split('|')
+            if init_fields[0] == "WIN":
+                self.finish_for_agency(init_fields[1])
             agency_id = init_fields[0]
             bets_amount = int(init_fields[1])
             logging.info(f'action: receive_id | result: success | ip: {addr[0]} | agency_id: {agency_id}| bets_amount: {bets_amount}')
@@ -110,6 +117,23 @@ class Server:
         c, addr = self._server_socket.accept()
         logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
         return c
+    
+    def finish_for_agency(self, agency_id):
+        # Warning, do not insert the same N times, could make finished_agencies a set
+        if not self.finished_agencies.__contains__(agency_id):
+            self.finished_agencies.append(agency_id)
+
+    def send_winners(self):
+        # Get the winners, then filter per agency
+        winners = []
+
+        bets = load_bets()
+        for bet in bets:
+            if has_won(bet):
+                winners.append(bet)
+        
+        # Start a connection with each client?
+        #TODO: filter winners per agency and communicate the winners to the client
 
     def receive_data(self, sock):
         """Receives data until find a '\n', and returns the data read until that moment."""

@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -105,6 +106,12 @@ func (c *Client) StartClientLoop() {
 
 			if len(betsBatch) == 0 {
 				log.Infof("action: send_batches | result: success | client_id: %v", c.config.ID)
+				err := c.finishSendingAndQueryWinners()
+				if err != nil {
+					// Log error
+				}
+				// Log success
+
 				return
 			}
 
@@ -224,6 +231,56 @@ func SerializeBetsBatch(betsBatch []Bet) string {
 		lines = append(lines, line)
 	}
 	return strings.Join(lines, "\n") + "\n"
+}
+
+func (c *Client) finishSendingAndQueryWinners() error {
+	// Create the connection the server in every loop iteration. Send an
+	err := c.createClientSocket()
+	if err != nil {
+		// Connection failed, error already logged in createClientSocket method
+		return err
+	}
+	defer c.conn.Close()
+
+	// Send the finish message to the server, that implies all bets have been sent
+	finishMessage := fmt.Sprintf("WIN|%s\n", c.config.ID)
+	_, err = c.conn.Write([]byte(finishMessage))
+	if err != nil {
+		log.Errorf("action: send_id | result: fail | error: %v", err)
+		return err
+	}
+
+	// Protocolo de envío de ganadores: Mando desde el servidor inicialmente el ID de la agencia y la cantidad de ganadores
+	reader := bufio.NewReader(c.conn)
+
+	initialWinnersMsg, err := reader.ReadString('\n')
+	initialMsgFields := strings.Split(initialWinnersMsg, "|")
+	if err != nil || initialMsgFields[0] != c.config.ID {
+		log.Errorf("action: receive_initial_winners_message | result: fail | client_id: %v | error: %v", c.config.ID, err)
+		return err
+	}
+
+	winnersAmount, err := strconv.Atoi(strings.Trim(initialMsgFields[1], "\n"))
+	if err != nil {
+		log.Errorf("action: parse_winners_amount | result: fail | client_id: %v | error: %v", c.config.ID, err)
+		return err
+	}
+
+	totalWinners := []string{}
+	for i := 0; i < winnersAmount; i++ {
+		// Receiving only the winners DNIs, separated by `|`
+		betWinnerDocument, err := reader.ReadString('|')
+		if err != nil {
+			log.Errorf("action: consulta_ganadores | result: fail | client_id: %v | error: %v", c.config.ID, err)
+			return err
+		}
+
+		totalWinners = append(totalWinners, betWinnerDocument)
+	}
+
+	log.Info("action: consulta_ganadores | result: success | cant_ganadores: %v", len(totalWinners))
+
+	return nil
 }
 
 // handleSignals Captures SIGTERM signal and stops the client calling StopClient method.
