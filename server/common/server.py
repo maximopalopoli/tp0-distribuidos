@@ -1,3 +1,4 @@
+import select
 import socket
 import logging
 import signal
@@ -35,16 +36,20 @@ class Server:
 
         while self.is_running:
             try:
-                client_sock = self.__accept_new_connection()
-                # Dont handle the connection if accept failed
-                if client_sock:
-                    self.__handle_client_connection(client_sock)
+                ready_to_read, _, _ = select.select([self._server_socket], [], [], 0.5)
+                if ready_to_read:
+                    client_sock = self.__accept_new_connection()
+                    if client_sock:
+                        self.__handle_client_connection(client_sock)
+                if len(ready_to_read) == 0:
+                    return
             except OSError as e:
                 if not self.is_running:
                     logging.info("action: shutdown | result: fail")
                     break 
                 else:
                     logging.error(f"action: accept_connection | result: fail | error: {e}") 
+
 
     def __handle_client_connection(self, client_sock):
         """
