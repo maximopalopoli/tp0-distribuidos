@@ -1,6 +1,8 @@
 import socket
 import logging
 import signal
+import multiprocessing
+import time
 
 from common.utils import Bet, has_won, load_bets, store_bets
 
@@ -14,6 +16,93 @@ def deserialize_bet(message: str):
         "numero": fields[4],
     }
 
+def handle_client_connection(client_sock, active_agencies, finished):
+    """
+    Read message from a specific client socket and closes the socket
+
+    If a problem arises in the communication with the client, the
+    client socket will also be closed
+    """
+    try:
+        # Receive client hello message
+        hello_msg_data = receive_data(client_sock)
+        if not hello_msg_data:
+            logging.error(f'action: receive_hello_message | result: fail | error: error while reading hello message')
+            return
+        addr = client_sock.getpeername()
+
+        hello_fields = hello_msg_data.strip().split('|')
+        if hello_fields[0] != "HELLO":
+            logging.error(f'action: parse_hello_message | result: fail | error: First connection message should start with hello')
+            return
+
+        agency_id = int(hello_fields[1])
+        if not agency_id in active_agencies:
+            active_agencies[agency_id] = client_sock
+            
+        addr = client_sock.getpeername()
+        logging.info(f'action: receive_hello_message | result: success | ip: {addr[0]} | agency_id: {agency_id}')
+            
+        # Now we are receiving batches of bets, repeating the logic for each batch, unti we receive the WIN message
+        while True:
+            # Start receiving the agency id
+            init_msg_data = receive_data(client_sock)
+            if not init_msg_data:
+                logging.error(f'action: receive_message | result: fail | error: error while reading agency id')
+
+            init_fields = init_msg_data.strip().split('|')
+            if init_fields[0] == "WIN":
+                finished.value += 1
+                break
+
+            agency_id = int(init_fields[0])
+            bets_amount = int(init_fields[1])
+            logging.info(f'action: receive_id | result: success | ip: {addr[0]} | agency_id: {agency_id}| bets_amount: {bets_amount}')
+
+            # Send initial ACK with agency id
+            ack_message = f"OK|{agency_id}\n".encode("utf-8")
+            client_sock.sendall(ack_message)
+
+            received_bets = []
+            # Receive and deserialize the rest of bet information
+            for i in range(bets_amount):
+                # Receive raw data from socket
+                bet_message = receive_data(client_sock)
+                bet_data = deserialize_bet(bet_message)
+                if len(bet_data) < 5:
+                    logging.error(f"action: apuesta_recibida | result: fail | cantidad: {i}")
+                    return
+                
+                # Create and store Bet
+                bet = Bet(agency_id, bet_data["nombre"], bet_data["apellido"], bet_data["dni"], bet_data["nacimiento"], bet_data["numero"])            
+                received_bets.append(bet)
+
+            store_bets(received_bets)
+                
+            logging.info(f"action: apuesta_recibida | result: success | cantidad: {bets_amount}")
+
+            # Send final ACK including dni and bet number
+            response = f"OK\n".encode("utf-8")
+            client_sock.sendall(response)
+
+    except OSError as e:
+        logging.error("action: receive_message | result: fail | error: {e}")
+    finally:
+        if agency_id not in active_agencies:
+            client_sock.close()
+            logging.info("action: close_socket_client | result: success")
+
+def receive_data(sock):
+    """Receives data until find a '\n', and returns the data read until that moment."""
+    received_msg = b""
+    while True:
+        data = sock.recv(1)
+        if not data:
+            break
+        received_msg += data
+        if data == b"\n":
+            break
+    return received_msg.decode("utf-8").strip()
 class Server:
     def __init__(self, port, listen_backlog):
         # Initialize server socket
@@ -22,8 +111,8 @@ class Server:
         self._server_socket.listen(listen_backlog)
         self.is_running = True
 
-        self.active_agencies: dict[int, socket.socket] = {}
-        self.finished = 0
+        self.active_agencies = multiprocessing.Manager().dict()
+        self.finished = multiprocessing.Manager().Value(int, 0)
 
         signal.signal(signal.SIGTERM, self._handle_shutdown)
 
@@ -35,15 +124,18 @@ class Server:
         communication with a client. After client with communucation
         finishes, servers starts to accept new connections again
         """
-
+        processes = []
         while self.is_running:
             try:
+                time.sleep(0.1)
                 if len(self.active_agencies) < 5:
                     client_sock = self.__accept_new_connection()
                     # Dont handle the connection if accept failed
                     if client_sock:
-                        self.__handle_client_connection(client_sock)
-                if self.finished == 5:
+                        p = multiprocessing.Process(target=handle_client_connection, args=(client_sock, self.active_agencies, self.finished))
+                        p.start()
+                        processes.append(p)
+                if self.finished.value == 5:
                     self.send_winners()
                     return
 
@@ -53,81 +145,6 @@ class Server:
                     break 
                 else:
                     logging.error(f"action: accept_connection | result: fail | error: {e}") 
-
-    def __handle_client_connection(self, client_sock):
-        """
-        Read message from a specific client socket and closes the socket
-
-        If a problem arises in the communication with the client, the
-        client socket will also be closed
-        """
-        try:
-            # Receive client hello message
-            hello_msg_data = self.receive_data(client_sock)
-            if not hello_msg_data:
-                logging.error(f'action: receive_hello_message | result: fail | error: error while reading hello message')
-                return
-            addr = client_sock.getpeername()
-
-            hello_fields = hello_msg_data.strip().split('|')
-            if hello_fields[0] != "HELLO":
-                logging.error(f'action: parse_hello_message | result: fail | error: First connection message should start with hello')
-                return
-
-            agency_id = int(hello_fields[1])
-            if not agency_id in self.active_agencies:
-                self.active_agencies[agency_id] = client_sock
-            
-            addr = client_sock.getpeername()
-            logging.info(f'action: receive_hello_message | result: success | ip: {addr[0]} | agency_id: {agency_id}')
-            
-            # Now we are receiving batches of bets, repeating the logic for each batch, unti we receive the WIN message
-            while True:
-                # Start receiving the agency id
-                init_msg_data = self.receive_data(client_sock)
-                if not init_msg_data:
-                    logging.error(f'action: receive_message | result: fail | error: error while reading agency id')
-
-                init_fields = init_msg_data.strip().split('|')
-                if init_fields[0] == "WIN":
-                    self.finished += 1
-                    break
-                agency_id = int(init_fields[0])
-                bets_amount = int(init_fields[1])
-                logging.info(f'action: receive_id | result: success | ip: {addr[0]} | agency_id: {agency_id}| bets_amount: {bets_amount}')
-
-                # Send initial ACK with agency id
-                ack_message = f"OK|{agency_id}\n".encode("utf-8")
-                client_sock.sendall(ack_message)
-
-                received_bets = []
-                # Receive and deserialize the rest of bet information
-                for i in range(bets_amount):
-                    # Receive raw data from socket
-                    bet_message = self.receive_data(client_sock)
-                    bet_data = deserialize_bet(bet_message)
-                    if len(bet_data) < 5:
-                        logging.error(f"action: apuesta_recibida | result: fail | cantidad: {i}")
-                        return
-                
-                    # Create and store Bet
-                    bet = Bet(agency_id, bet_data["nombre"], bet_data["apellido"], bet_data["dni"], bet_data["nacimiento"], bet_data["numero"])            
-                    received_bets.append(bet)
-
-                store_bets(received_bets)
-                
-                logging.info(f"action: apuesta_recibida | result: success | cantidad: {bets_amount}")
-
-                # Send final ACK including dni and bet number
-                response = f"OK\n".encode("utf-8")
-                client_sock.sendall(response)
-
-        except OSError as e:
-            logging.error("action: receive_message | result: fail | error: {e}")
-        finally:
-            if agency_id not in self.active_agencies:
-                client_sock.close()
-                logging.info("action: close_socket_client | result: success")
 
     def __accept_new_connection(self):
         """
@@ -166,19 +183,6 @@ class Server:
             client_socket.sendall(winner_documents_str)
 
         logging.info('action: envio_respuestas | result: success')
-
-
-    def receive_data(self, sock):
-        """Receives data until find a '\n', and returns the data read until that moment."""
-        received_msg = b""
-        while True:
-            data = sock.recv(1)
-            if not data:
-                break
-            received_msg += data
-            if data == b"\n":
-                break
-        return received_msg.decode("utf-8").strip()
 
     def _handle_shutdown(self, signum, _):
         """
