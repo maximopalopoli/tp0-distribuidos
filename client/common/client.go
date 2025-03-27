@@ -90,6 +90,24 @@ func (c *Client) StartClientLoop() {
 
 	fileReader := bufio.NewReader(file)
 
+	// Create the connection to the server only once.
+	err = c.createClientSocket()
+	if err != nil {
+		// Connection failed, error already logged in createClientSocket method
+		return
+	}
+	defer c.conn.Close()
+
+	// TODO: Improve waiting for response
+	c.conn.SetReadDeadline(time.Now().Add(100000000 * time.Second))
+
+	idMessage := fmt.Sprintf("HELLO|%s\n", c.config.ID)
+	_, err = c.conn.Write([]byte(idMessage))
+	if err != nil {
+		log.Errorf("action: send_hello | result: fail | error: %v", err)
+		return
+	}
+
 	for {
 		select {
 		// This case implies a SIGTERM signal has bee received, so we should close gracefully this client
@@ -97,7 +115,6 @@ func (c *Client) StartClientLoop() {
 			log.Infof("action: shutdown | result: in_progress | client_id: %v", c.config.ID)
 			return
 		default:
-
 			betsBatch, err := c.readBetsBatch(fileReader)
 			if err != nil {
 				log.Errorf("action: read_batch | result: fail | error: %v", err)
@@ -181,17 +198,9 @@ func (c *Client) sendBetsBatch(betsBatch []Bet) error {
 		return nil
 	}
 
-	// Create the connection the server in every loop iteration. Send an
-	err := c.createClientSocket()
-	if err != nil {
-		// Connection failed, error already logged in createClientSocket method
-		return err
-	}
-	defer c.conn.Close()
-
 	// Send the config ID (agencyId) and the batch length first
 	idMessage := fmt.Sprintf("%s|%d\n", c.config.ID, len(betsBatch))
-	_, err = c.conn.Write([]byte(idMessage))
+	_, err := c.conn.Write([]byte(idMessage))
 	if err != nil {
 		log.Errorf("action: send_id | result: fail | error: %v", err)
 		return err
@@ -201,7 +210,7 @@ func (c *Client) sendBetsBatch(betsBatch []Bet) error {
 	reader := bufio.NewReader(c.conn)
 	ack, err := reader.ReadString('\n')
 	if err != nil || ack != fmt.Sprintf("OK|%s\n", c.config.ID) {
-		log.Errorf("action: receive_initial_ack | result: fail | error: %v", err)
+		log.Errorf("action: receive_initial_ack | result: fail | ack: %v | error: %v", ack, err)
 		return err
 	}
 
@@ -234,24 +243,14 @@ func SerializeBetsBatch(betsBatch []Bet) string {
 }
 
 func (c *Client) finishSendingAndQueryWinners() error {
-	// Create the connection the server in every loop iteration. Send an
-	err := c.createClientSocket()
-	if err != nil {
-		// Connection failed, error already logged in createClientSocket method
-		return err
-	}
-	defer c.conn.Close()
-
 	// Send the finish message to the server, that implies all bets have been sent
 	finishMessage := fmt.Sprintf("WIN|%s\n", c.config.ID)
-	_, err = c.conn.Write([]byte(finishMessage))
+	_, err := c.conn.Write([]byte(finishMessage))
 	if err != nil {
 		log.Errorf("action: send_id | result: fail | error: %v", err)
 		return err
 	}
 
-	// TODO: Improve waiting for response
-	c.conn.SetReadDeadline(time.Now().Add(1000 * time.Second))
 
 	// Protocolo de envío de ganadores: Mando desde el servidor inicialmente el ID de la agencia y la cantidad de ganadores
 	reader := bufio.NewReader(c.conn)
