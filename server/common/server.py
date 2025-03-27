@@ -41,7 +41,7 @@ class Server:
                     self.__handle_client_connection(client_sock)
             except OSError as e:
                 if not self.is_running:
-                    logging.info("action: shutdown | result: server_stopped")
+                    logging.info("action: shutdown | result: fail")
                     break 
                 else:
                     logging.error(f"action: accept_connection | result: fail | error: {e}") 
