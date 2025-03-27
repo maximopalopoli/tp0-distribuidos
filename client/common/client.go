@@ -120,7 +120,7 @@ func (c *Client) StartClientLoop() {
 				log.Errorf("action: send_batch | result: fail | error: %v", err)
 				return
 			}
-			//time.Sleep(time.Millisecond * 250)
+			time.Sleep(time.Millisecond * 100)
 		}
 	}
 }
@@ -250,13 +250,15 @@ func (c *Client) finishSendingAndQueryWinners() error {
 		return err
 	}
 
+	c.conn.SetReadDeadline(time.Now().Add(1000 * time.Second))
+
 	// Protocolo de envío de ganadores: Mando desde el servidor inicialmente el ID de la agencia y la cantidad de ganadores
 	reader := bufio.NewReader(c.conn)
 
 	initialWinnersMsg, err := reader.ReadString('\n')
 	initialMsgFields := strings.Split(initialWinnersMsg, "|")
 	if err != nil || initialMsgFields[0] != c.config.ID {
-		log.Errorf("action: receive_initial_winners_message | result: fail | client_id: %v | error: %v", c.config.ID, err)
+		log.Errorf("action: receive_initial_winners_message | result: fail | client_id: %v | error: %v", initialMsgFields[0], err)
 		return err
 	}
 
@@ -266,19 +268,24 @@ func (c *Client) finishSendingAndQueryWinners() error {
 		return err
 	}
 
-	totalWinners := []string{}
-	for i := 0; i < winnersAmount; i++ {
-		// Receiving only the winners DNIs, separated by `|`
-		betWinnerDocument, err := reader.ReadString('|')
-		if err != nil {
-			log.Errorf("action: consulta_ganadores | result: fail | client_id: %v | error: %v", c.config.ID, err)
-			return err
-		}
+	// Send an ok?
 
-		totalWinners = append(totalWinners, betWinnerDocument)
+	// Receiving only the winners DNIs, separated by `|`
+	betWinnersDocument, err := reader.ReadString('\n')
+	if err != nil {
+		log.Errorf("action: consulta_ganadores | result: fail | client_id: %v | error: %v", c.config.ID, err)
+		return err
 	}
 
-	log.Info("action: consulta_ganadores | result: success | cant_ganadores: %v", len(totalWinners))
+	if winnersAmount > 0 {
+		totalWinners := strings.Split(betWinnersDocument, "|")
+		if winnersAmount != len(totalWinners) {
+			log.Errorf("action: consulta_ganadores | result: fail | client_id: %v | error: expected winners amount does not match the winners read", c.config.ID)
+			return err
+		}		
+	}
+
+	log.Info("action: consulta_ganadores | result: success | cant_ganadores: ", winnersAmount)
 
 	return nil
 }
