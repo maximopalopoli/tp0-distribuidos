@@ -209,3 +209,5 @@ El sript se puede probar ejecutándolo:
 Los cambios en el cliente y el servidor fueron los siguientes:
 - En el cliente se agregó el método `handleSignals()`, que crea una goroutine que queda a la espera de señales SIGTERM, y en caso de recibirla llama al método `StopClient()`, que cierra un canal `close`, que envía una señal al main loop que hace que se termine en la próxima iteración.
 - En el servidor, a través de la lib signal, en caso de recibir una señal SIGTERM se llama al método `_handle_shutdown()`, que cierra el `_server_socket` y que setea el atributo `is_running` en false, haciendo que en la próxima iteración el main loop se detenga.
+
+Se puede probar yendo a la aplicación docker desktop, y dandole stop a alguno de los containers mientras se imprimen los logs con `make docker-compose-logs`.
