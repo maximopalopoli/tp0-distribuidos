@@ -178,3 +178,77 @@ Se espera que se redacte una sección del README en donde se indique cómo ejecu
 Se proveen [pruebas automáticas](https://github.com/7574-sistemas-distribuidos/tp0-tests) de caja negra. Se exige que la resolución de los ejercicios pase tales pruebas, o en su defecto que las discrepancias sean justificadas y discutidas con los docentes antes del día de la entrega. El incumplimiento de las pruebas es condición de desaprobación, pero su cumplimiento no es suficiente para la aprobación. Respetar las entradas de log planteadas en los ejercicios, pues son las que se chequean en cada uno de los tests.
 
 La corrección personal tendrá en cuenta la calidad del código entregado y casos de error posibles, se manifiesten o no durante la ejecución del trabajo práctico. Se pide a los alumnos leer atentamente y **tener en cuenta** los criterios de corrección informados  [en el campus](https://campusgrado.fi.uba.ar/mod/page/view.php?id=73393).
+
+## Instrucciones de ejecución
+### Ejercicio 1
+El script se puede ejecutar corriendo desde la carpeta root del repositorio:
+```
+./generar-compose.sh <nombre-archivo-creado> <cantidad-clientes>
+```
+En caso de no agregar los parámetros, se imprimira un error indicando la entrada esperada.
+
+### Ejercicio 2
+El script ahora agrega los volumenes correspondientes a cada cliente o servidor. Corriendo el script del ejercicio 1 y luego levantar usando:
+
+``` bash
+make docker-compose-up
+```
+
+### Ejercicio 3
+Como según la consigna `Netcat no debe ser instalado en la máquina host`, entonces para el script de validación voy a crear un cliente de prueba que instale netcat cuando se cree. Elegí usar busybox porque es una imagen ligera que incluye netcat dentro de su configuración.
+
+El cliente validador forma parte de la network, por lo que no es necesario exponer el puerto del servidor, y como se usa un container con netcat tampoco es necesario instalar netcat en el host.
+
+El sript se puede probar ejecutándolo:
+
+``` bash
+./validar-echo-server.sh
+```
+
+### Ejercicio 4
+Los cambios en el cliente y el servidor fueron los siguientes:
+- En el cliente se agregó el método `handleSignals()`, que crea una goroutine que queda a la espera de señales SIGTERM, y en caso de recibirla llama al método `StopClient()`, que cierra un canal `close`, que envía una señal al main loop que hace que se termine en la próxima iteración.
+- En el servidor, a través de la lib signal, en caso de recibir una señal SIGTERM se llama al método `_handle_shutdown()`, que cierra el `_server_socket` y que setea el atributo `is_running` en false, haciendo que en la próxima iteración el main loop se detenga.
+
+Se puede probar yendo a la aplicación docker desktop, y dandole stop a alguno de los containers mientras se imprimen los logs con `make docker-compose-logs`.
+
+### Ejercicio 5
+Para este ejercicio, se modelaron las apuestas en el cliente en la estructura Bet, que es bastante similar a la clase Bet que hay en los utils de python. También se implementó el recibir los campos de la Bet a enviar desde el entorno, porque en los tests del ejercicio se eliminaban esos campos preestablecidos del archivo de configuración de tipo yaml.
+El protocolo de comunicación definido entre cliente y servidor consta de los siguientes pasos:
+1. El cliente inicia la comunicación enviando su config id, que es el id de agencia
+2. El servidor recibe ese mensaje y le devuelve un primer ACK, que incluye el Id para verificación, de formato `OK|ID\n`.
+3. Después de recibir y verificar el Id, el cliente envía el resto de la información sobre la apuesta, en el formato de serialización: `Santiago|Lorca|30904465|1999-03-17|7574\n`
+4. El servidor entonces guarda la apuesta, y en caso de éxito, envía un ACK al cliente que incluye el DNI y el número de apuesta.
+5. El cliente recibe ese ACK y termina el ciclo del protocolo.
+
+Un defecto del modelo de comunicación elegido es que estoy creando una conexión por cada mensaje, pero se soluciona en los ejercicios siguientes.
+
+Tanto para este ejercicio como para los siguientes la forma de probarlo es haciendo `make docker-compose-up`, y ver los logs con `make docker-compose-logs`, cerrando y eliminando los contenedores después de la ejecución con `make docker-compose-down`.
+
+### Ejercicio 6
+El protocolo implementado es similar al del ejercicio anterior, pero difiere en algunas cosas. La principal es que ahora el cliente va a leer por batches del archivo de data correspondiente (dicha lógica está en `readBetsBatch`), y tener varias comunicaciones con el servidor, y en cada una va a enviar un batch de apuestas, definido por la cantidad máxima permita o por el peso máximo permitido por batch. Los pasos de cada comunicación son los siguientes:
+1. El cliente inicia la comunicación enviando su id de agencia y la cantidad de apuestas en el batch
+2. El servidor recibe dicho mensaje y le devuelve un primer ACK, que incluye el Id para verificación, de formato `OK|ID\n`.
+3. Después de recibir y verificar el Id, el cliente envía todas las apuestas que contiene el batch, que además de separar sus campos con el caracter `|`, va a separar entre apuestas con el caracter de fin de línea (`\n`), que va a servir para que el servidor lea de fin de línea a fin de línea. Un ejemplo del formato sería el siguiente: `Santiago|Lorca|30904465|1999-03-17|7574\nFacundo Benjamin|Pérez|27469637|1990-12-16|6386\n`.
+4. Una vez que recibió tantas apuestas como se informaban al principio de la comunicación, el servidor va a enviar un ACK simple.
+5. El cliente recibe ese ACK y termina el ciclo del protocolo, para volver a empezar con un batch nuevo si hay más filas para leer en el archivo de data.
+
+Un cambio importante de este ejercicio que también se va a aplicar a los siguientes es el uso de select.select() a la hora de recibir conexiones. Decidí usar esta función porque, al ser `__accept_new_connection` bloqueante, me solía pasar que el servidor se quedaba colgado esperando nuevas conexiones cuando no iba a llegar ninguna más. También me sirvió para manejar distintas cantidades de conexiones sin tener un if con un número hardcodeado con la cantidad de clientes que podía tener.
+
+Notar que tanto en este ejercicio como en los siguientes, los archivos csv de data están descomprimidos en la carpeta `/.data`, ya que, a pesar de no ser eficiente en cuanto a tener que tener los archivos en el repositorio, no hacen falta pasos intermedios para ejecutar los programas.
+
+### Ejercicio 7
+El flujo de ejecución de cada uno es el siguiente:
+- Cliente: Primero se abre el archivo, se crea la conexión con el servidor y se le manda un mensaje inicial, que contiene la key `HELLO`, más el id de la agencia. Luego comienza el loop en sí, donde se lee un batch de apuestas del archivo, y se procede a enviar dicho batch al servidor con el protocolo antes descripto. Cuando se lee toda la data del archivo, se envía un mensaje al servidor con la Key `WIN`, que le indica que se enviaron todas las apuestas, sumado al id de la agencia. Entonces el servidor va a enviar la cantidad de ganadores junto con el id de la agencia, para validaciones. Después de ese mensaje, el servidor envía otro mensaje con los documentos de los ganadores de la agencia en cuestión, separados por el caracter `|`, y con un `\n` al final del mensaje. Una vez que el cliente termine de recibir los ganadores imprimira un log de éxito y cerrará con código 0.
+- Servidor: El servidor va a guardar las conexiones en un diccionario, donde las keys son los ids de las agencias, además de una variable finished, que almacena la cantidad de agencias que ya enviaron toda la data. Cuando reciba en una conexión un mensaje con la clave `WIN`, va a aumentar el contador finished, y cuando en el main loop el contador finished llegue a 5, entonces va a proceder a realizar el sorteo, comunicando entonces los ganadores a los clientes, que están esperando los resultados. El procedimiento para enviar va a ser, primero filtrar todos los ganadores, luego iterar entre los ids de agencia y por cada id filtrar por dicho id entre los ganadores. En cuanto a la comunicación con el cliente, primero va a enviar el id de la agencia que recibe el mensaje, junto con la cantidad de documentos de ganadores que va a enviar. Luego, va a enviar los documentos de los ganadores separados por el caracter `|`, y con un `\n` al final del mensaje (ejemplo: `30876370|24807259\n`). Una vez enviados todos los ganadores, emite un log de éxito y termina el programa.
+
+Notar que en este ejercicio y en el siguiente, cada cliente tiene una conexión única con el servidor, en vez de tener una por batch. Este método es más eficiente, ya que permite ahorrarse el realizar la conexión de nuevo (sobre todo estando en TCP, donde en un inicio la velocidad de la comunicación es más lenta, por el control de congestión).
+
+### Ejercicio 8
+Viendo las limitaciones de GIL ([link a explicación](https://wiki.python.org/moin/GlobalInterpreterLock)), decidí hacer que el programa sea multiprocessing en vez de multithreading, ya que es igual de fácil usar procesos que threads y los threads van a tener un peor uso del procesador.
+
+Que cambios se hicieron en el servidor para poder manejar las conexiones en paralelo?
+- Los métodos `__handle_client_connection` y `receive_data` pasaron a ser funciones para poder ejecutarse en paralelo.
+- El diccionario `active_agencies` pasó a ser manejado a través de un `multiprocessing.Manager`, y el contador `finished` pasó a ser un `multiprocessing.Value`, y a tener un `multiprocessing.Lock()` para controlar que las escrituras fueran atómicas. Esto hizo que ambos recursos compartidos entre los procesos tuvieran un acceso read/write atómico, evitando así race conditions.
+- Para manejar las conexiones, ahora de lanza un proceso nuevo que va a ejecutar la función `handle_client_connection`, que maneja la conexión con el cliente a través del socket creado en `__accept_new_connection`. Dichos procesos se almacenan en un array, y después del main loop se recorre ese array para hacer join de esos procesos.
+- El uso de `select.select()`, así como en el ejercicio anterior, fue importante, porque permitió leer las conexiones entrantes sin bloquear el main process del server, y además agregar una verificación adicional de que no hubiera conexiones entrantes a la hora de comenzar el sorteo.
