@@ -185,7 +185,7 @@ El script se puede ejecutar corriendo desde la carpeta root del repositorio:
 ```
 ./generar-compose.sh <nombre-archivo-creado> <cantidad-clientes>
 ```
-El script no contempla el no recibir parámetros de entrada, pero es el principal TODO a mejorar.
+En caso de no agregar los parámetros, se imprimira un error indicando la entrada esperada.
 
 ### Ejercicio 2
 El script ahora agrega los volumenes correspondientes a cada cliente o servidor. Corriendo el script del ejercicio 1 y luego levantar usando:
