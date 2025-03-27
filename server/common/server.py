@@ -16,7 +16,7 @@ def deserialize_bet(message: str):
         "numero": fields[4],
     }
 
-def handle_client_connection(client_sock, active_agencies, finished):
+def handle_client_connection(client_sock, active_agencies, finished, finished_lock):
     """
     Read message from a specific client socket and closes the socket
 
@@ -52,7 +52,8 @@ def handle_client_connection(client_sock, active_agencies, finished):
 
             init_fields = init_msg_data.strip().split('|')
             if init_fields[0] == "WIN":
-                finished.value += 1
+                with finished_lock:
+                    finished.value += 1
                 break
 
             agency_id = int(init_fields[0])
@@ -112,7 +113,9 @@ class Server:
         self.is_running = True
 
         self.active_agencies = multiprocessing.Manager().dict()
-        self.finished = multiprocessing.Manager().Value(int, 0)
+
+        self.finished = multiprocessing.Value(int, 0)
+        self.finished_lock = multiprocessing.Lock()
 
         signal.signal(signal.SIGTERM, self._handle_shutdown)
 
@@ -131,7 +134,7 @@ class Server:
                 if ready_to_read:
                     client_sock = self.__accept_new_connection()
                     if client_sock:
-                        p = multiprocessing.Process(target=handle_client_connection, args=(client_sock, self.active_agencies, self.finished))
+                        p = multiprocessing.Process(target=handle_client_connection, args=(client_sock, self.active_agencies, self.finished, self.finished_lock))
                         p.start()
                         processes.append(p)
                 if self.finished.value == len(self.active_agencies) and len(ready_to_read) == 0:
