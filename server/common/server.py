@@ -22,7 +22,7 @@ class Server:
         self._server_socket.listen(listen_backlog)
         self.is_running = True
 
-        self.finished_agencies = []
+        self.finished_agencies: dict[int, socket.socket] = {}
 
         signal.signal(signal.SIGTERM, self._handle_shutdown)
 
@@ -43,6 +43,7 @@ class Server:
                     self.__handle_client_connection(client_sock)
                 if len(self.finished_agencies) == 5:
                     self.send_winners()
+                    return
 
             except OSError as e:
                 if not self.is_running:
@@ -67,7 +68,9 @@ class Server:
 
             init_fields = init_msg_data.strip().split('|')
             if init_fields[0] == "WIN":
-                self.finish_for_agency(init_fields[1])
+                agency_id = init_fields[1]
+                self.finish_for_agency(agency_id, client_sock)
+                return
             agency_id = init_fields[0]
             bets_amount = int(init_fields[1])
             logging.info(f'action: receive_id | result: success | ip: {addr[0]} | agency_id: {agency_id}| bets_amount: {bets_amount}')
@@ -101,8 +104,9 @@ class Server:
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
         finally:
-            client_sock.close()
-            logging.info("action: close_socket_client | result: success")
+            if int(agency_id) not in self.finished_agencies:
+                client_sock.close()
+                logging.info("action: close_socket_client | result: success")
 
     def __accept_new_connection(self):
         """
@@ -118,22 +122,36 @@ class Server:
         logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
         return c
     
-    def finish_for_agency(self, agency_id):
-        # Warning, do not insert the same N times, could make finished_agencies a set
-        if not self.finished_agencies.__contains__(agency_id):
-            self.finished_agencies.append(agency_id)
+    def finish_for_agency(self, agency_id, client_sock):
+        agency_id = int(agency_id)
+
+        if not agency_id in self.finished_agencies:
+            self.finished_agencies[agency_id] = client_sock
 
     def send_winners(self):
         # Get the winners, then filter per agency
-        winners = []
+        winners: list[Bet] = []
 
         bets = load_bets()
         for bet in bets:
             if has_won(bet):
                 winners.append(bet)
         
-        # Start a connection with each client?
-        #TODO: filter winners per agency and communicate the winners to the client
+        logging.info('action: sorteo | result: success')
+
+        for curr_agency in range(1,6): # ids of agencies (from 1 to 5)
+            filtered_winners = [bet for bet in winners if bet.agency == curr_agency]
+
+            client_socket = self.finished_agencies[curr_agency]
+
+            initial_winner_msg = (str(curr_agency) + "|" + str(len(filtered_winners)) + "\n").encode("utf-8")
+            client_socket.sendall(initial_winner_msg)
+
+            winner_documents_str = ("|".join(bet.document for bet in filtered_winners) + "\n").encode("utf-8")
+            client_socket.sendall(winner_documents_str)
+
+        logging.info('action: envio_respuestas | result: success')
+
 
     def receive_data(self, sock):
         """Receives data until find a '\n', and returns the data read until that moment."""
