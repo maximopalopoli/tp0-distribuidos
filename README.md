@@ -193,4 +193,3 @@ El script ahora agrega los volumenes correspondientes a cada cliente o servidor.
 ``` bash
 make docker-compose-up
 ```
-TODO: agregar una forma práctica de ver que está cambiando. Se puede probar haciendo `docker exec -it server sh`, modificando `server/config.ini`, y haciendo `cat` del archivo `/config.ini`, pero no se ve aplicado en la práctica. Capaz se puede levantar con el make pero después solo haciendo `docker compose -f docker-compose-dev.yaml stop -t 1`, cambiando en la config el número de logs y luego levantar y probar que la cantidad de logs cambia.
