@@ -114,7 +114,7 @@ class Server:
 
         self.active_agencies = multiprocessing.Manager().dict()
 
-        self.finished = multiprocessing.Value(int, 0)
+        self.finished = multiprocessing.Value('i', 0)
         self.finished_lock = multiprocessing.Lock()
 
         signal.signal(signal.SIGTERM, self._handle_shutdown)
