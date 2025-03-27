@@ -108,9 +108,9 @@ func (c *Client) StartClientLoop() {
 				log.Infof("action: send_batches | result: success | client_id: %v", c.config.ID)
 				err := c.finishSendingAndQueryWinners()
 				if err != nil {
-					// Log error
+					log.Infof("action: query_winners | result: fail | client_id: %v | err: ", c.config.ID, err)
 				}
-				// Log success
+				log.Infof("action: query_winners | result: success | client_id: %v", c.config.ID)
 
 				return
 			}
