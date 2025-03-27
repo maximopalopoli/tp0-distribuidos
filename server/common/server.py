@@ -2,7 +2,6 @@ import socket
 import logging
 import signal
 import multiprocessing
-import time
 
 from common.utils import Bet, has_won, load_bets, store_bets
 
@@ -127,8 +126,7 @@ class Server:
         processes = []
         while self.is_running:
             try:
-                time.sleep(0.1)
-                if len(self.active_agencies) < 5:
+                if len(processes) < 5:
                     client_sock = self.__accept_new_connection()
                     # Dont handle the connection if accept failed
                     if client_sock:
