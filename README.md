@@ -185,7 +185,7 @@ El script se puede ejecutar corriendo desde la carpeta root del repositorio:
 ```
 ./generar-compose.sh <nombre-archivo-creado> <cantidad-clientes>
 ```
-El script no contempla el no recibir parámetros de entrada, pero es el principal TODO a mejorar.
+En caso de no agregar los parámetros, se imprimira un error indicando la entrada esperada.
 
 ### Ejercicio 2
 El script ahora agrega los volumenes correspondientes a cada cliente o servidor. Corriendo el script del ejercicio 1 y luego levantar usando:
@@ -193,19 +193,27 @@ El script ahora agrega los volumenes correspondientes a cada cliente o servidor.
 ``` bash
 make docker-compose-up
 ```
-TODO: agregar una forma práctica de ver que está cambiando. Se puede probar haciendo `docker exec -it server sh`, modificando `server/config.ini`, y haciendo `cat` del archivo `/config.ini`, pero no se ve aplicado en la práctica. Capaz se puede levantar con el make pero después solo haciendo `docker compose -f docker-compose-dev.yaml stop -t 1`, cambiando en la config el número de logs y luego levantar y probar que la cantidad de logs cambia.
 
 ### Ejercicio 3
 Como según la consigna `Netcat no debe ser instalado en la máquina host`, entonces para el script de validación voy a crear un cliente de prueba que instale netcat cuando se cree. Elegí usar busybox porque es una imagen ligera que incluye netcat dentro de su configuración.
 
 El cliente validador forma parte de la network, por lo que no es necesario exponer el puerto del servidor, y como se usa un container con netcat tampoco es necesario instalar netcat en el host.
 
+El sript se puede probar ejecutándolo:
+
+``` bash
+./validar-echo-server.sh
+```
+
 ### Ejercicio 4
 Los cambios en el cliente y el servidor fueron los siguientes:
 - En el cliente se agregó el método `handleSignals()`, que crea una goroutine que queda a la espera de señales SIGTERM, y en caso de recibirla llama al método `StopClient()`, que cierra un canal `close`, que envía una señal al main loop que hace que se termine en la próxima iteración.
 - En el servidor, a través de la lib signal, en caso de recibir una señal SIGTERM se llama al método `_handle_shutdown()`, que cierra el `_server_socket` y que setea el atributo `is_running` en false, haciendo que en la próxima iteración el main loop se detenga.
 
+Se puede probar yendo a la aplicación docker desktop, y dandole stop a alguno de los containers mientras se imprimen los logs con `make docker-compose-logs`.
+
 ### Ejercicio 5
+Para este ejercicio, se modelaron las apuestas en el cliente en la estructura Bet, que es bastante similar a la clase Bet que hay en los utils de python. También se implementó el recibir los campos de la Bet a enviar desde el entorno, porque en los tests del ejercicio se eliminaban esos campos preestablecidos del archivo de configuración de tipo yaml.
 El protocolo de comunicación definido entre cliente y servidor consta de los siguientes pasos:
 1. El cliente inicia la comunicación enviando su config id, que es el id de agencia
 2. El servidor recibe ese mensaje y le devuelve un primer ACK, que incluye el Id para verificación, de formato `OK|ID\n`.
@@ -213,10 +221,16 @@ El protocolo de comunicación definido entre cliente y servidor consta de los si
 4. El servidor entonces guarda la apuesta, y en caso de éxito, envía un ACK al cliente que incluye el DNI y el número de apuesta.
 5. El cliente recibe ese ACK y termina el ciclo del protocolo.
 
+Un defecto del modelo de comunicación elegido es que estoy creando una conexión por cada mensaje, pero se soluciona en los ejercicios siguientes.
+
+Tanto para este ejercicio como para los siguientes la forma de probarlo es haciendo `make docker-compose-up`, y ver los logs con `make docker-compose-logs`, cerrando y eliminando los contenedores después de la ejecución con `make docker-compose-down`.
+
 ### Ejercicio 6
-El protocolo implementado es similar al del ejercicio anterior, pero difiere en algunas cosas. La principal es que ahora el cliente va a tener varias comunicaciones con el servidor, y en cada una va a enciar un batch de apuestas, definido por la cantidad o por el peso del batch. Los pasos de cada comunicación son los siguientes:
+El protocolo implementado es similar al del ejercicio anterior, pero difiere en algunas cosas. La principal es que ahora el cliente va a leer por batches del archivo de data correspondiente (dicha lógica está en `readBetsBatch`), y tener varias comunicaciones con el servidor, y en cada una va a enviar un batch de apuestas, definido por la cantidad máxima permita o por el peso máximo permitido por batch. Los pasos de cada comunicación son los siguientes:
 1. El cliente inicia la comunicación enviando su id de agencia y la cantidad de apuestas en el batch
 2. El servidor recibe dicho mensaje y le devuelve un primer ACK, que incluye el Id para verificación, de formato `OK|ID\n`.
 3. Después de recibir y verificar el Id, el cliente envía todas las apuestas que contiene el batch, que además de separar sus campos con el caracter `|`, va a separar entre apuestas con el caracter de fin de línea (`\n`), que va a servir para que el servidor lea de fin de línea a fin de línea. Un ejemplo del formato sería el siguiente: `Santiago|Lorca|30904465|1999-03-17|7574\nFacundo Benjamin|Pérez|27469637|1990-12-16|6386\n`.
 4. Una vez que recibió tantas apuestas como se informaban al principio de la comunicación, el servidor va a enviar un ACK simple.
-5. El cliente recibe ese ACK y termina el ciclo del protocolo, para volver a empezar si hay más filas para leer en el archivo de data.
+5. El cliente recibe ese ACK y termina el ciclo del protocolo, para volver a empezar con un batch nuevo si hay más filas para leer en el archivo de data.
+
+Un cambio importante de este ejercicio que también se va a aplicar a los siguientes es el uso de select.select() a la hora de recibir conexiones. Decidí usar esta función porque, al ser `__accept_new_connection` bloqueante, me solía pasar que el servidor se quedaba colgado esperando nuevas conexiones cuando no iba a llegar ninguna más. También me sirvió para manejar distintas cantidades de conexiones sin tener un if con un número hardcodeado con la cantidad de clientes que podía tener.

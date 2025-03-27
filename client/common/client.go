@@ -113,7 +113,6 @@ func (c *Client) StartClientLoop() {
 				log.Errorf("action: send_batch | result: fail | error: %v", err)
 				return
 			}
-			//time.Sleep(time.Millisecond * 250)
 		}
 	}
 }
@@ -198,6 +197,7 @@ func (c *Client) sendBetsBatch(betsBatch []Bet) error {
 		return err
 	}
 
+	// Send the batch in one message, separating fiels by `|`s and bets by `\n`s
 	message := SerializeBetsBatch(betsBatch)
 	_, err = c.conn.Write([]byte(message))
 	if err != nil {

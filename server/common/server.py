@@ -92,7 +92,7 @@ class Server:
             
             logging.info(f"action: apuesta_recibida | result: success | cantidad: {bets_amount}")
 
-            # Send final ACK including dni and bet number
+            # Send final ACK (simple)
             response = f"OK\n".encode("utf-8")
             client_sock.sendall(response)
 
