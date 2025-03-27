@@ -1,3 +1,4 @@
+import select
 import socket
 import logging
 import signal
@@ -126,14 +127,14 @@ class Server:
         processes = []
         while self.is_running:
             try:
-                if len(processes) < 5:
+                ready_to_read, _, _ = select.select([self._server_socket], [], [], 0.5)
+                if ready_to_read:
                     client_sock = self.__accept_new_connection()
-                    # Dont handle the connection if accept failed
                     if client_sock:
                         p = multiprocessing.Process(target=handle_client_connection, args=(client_sock, self.active_agencies, self.finished))
                         p.start()
                         processes.append(p)
-                if self.finished.value == 5:
+                if self.finished.value == len(self.active_agencies) and len(ready_to_read) == 0:
                     self.send_winners()
                     return
 
@@ -171,7 +172,7 @@ class Server:
         
         logging.info('action: sorteo | result: success')
 
-        for curr_agency in range(1,6): # ids of agencies (from 1 to 5)
+        for curr_agency in range(1,1+self.finished.value): # ids of agencies (from 1 to 5)
             filtered_winners = [bet for bet in winners if bet.agency == curr_agency]
 
             client_socket = self.active_agencies[curr_agency]
