@@ -37,10 +37,11 @@ class Server:
 
         while self.is_running:
             try:
-                client_sock = self.__accept_new_connection()
-                # Dont handle the connection if accept failed
-                if client_sock:
-                    self.__handle_client_connection(client_sock)
+                if len(self.finished_agencies) < 5:
+                    client_sock = self.__accept_new_connection()
+                    # Dont handle the connection if accept failed
+                    if client_sock:
+                        self.__handle_client_connection(client_sock)
                 if len(self.finished_agencies) == 5:
                     self.send_winners()
                     return
