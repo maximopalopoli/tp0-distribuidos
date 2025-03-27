@@ -113,7 +113,7 @@ func (c *Client) handleSignals() {
 	// This goroutine will capture the termination signal
 	go func() {
 		sig := <-sigChan
-		log.Infof("action: received_signal | signal: %v | client_id: %v", sig, c.config.ID)
+		log.Infof("action: received_signal | signal: %v | result: in_progress | client_id: %v", sig, c.config.ID)
 		c.StopClient()
 	}()
 }
