@@ -121,6 +121,7 @@ func (c *Client) StartClientLoop() {
 				return
 			}
 
+			// This means all batches have been sent
 			if len(betsBatch) == 0 {
 				log.Infof("action: send_batches | result: success | client_id: %v", c.config.ID)
 				err := c.finishSendingAndQueryWinners()
@@ -268,8 +269,6 @@ func (c *Client) finishSendingAndQueryWinners() error {
 		return err
 	}
 
-	// TODO: Should send an ok here?
-
 	// Receiving only the winners DNIs, separated by `|`
 	betWinnersDocument, err := reader.ReadString('\n')
 	if err != nil {
@@ -277,6 +276,7 @@ func (c *Client) finishSendingAndQueryWinners() error {
 		return err
 	}
 
+	// If there's no winners, split would return one element, not zero
 	if winnersAmount > 0 {
 		totalWinners := strings.Split(betWinnersDocument, "|")
 		if winnersAmount != len(totalWinners) {
