@@ -41,7 +41,7 @@ class Server:
                     self.__handle_client_connection(client_sock)
             except OSError as e:
                 if not self.is_running:
-                    logging.info("action: shutdown | result: server_stopped")
+                    logging.info("action: shutdown | result: fail")
                     break 
                 else:
                     logging.error(f"action: accept_connection | result: fail | error: {e}") 
@@ -117,7 +117,7 @@ class Server:
 
         Sets should_shutdown as true and closes server socket, also logging the shutdown.
         """
-        logging.info(f"action: shutdown | signal: {signum} | result: in_progress")
+        logging.info(f"action: shutdown | result: in_progress")
         self.is_running = False
         self._server_socket.close()
         logging.info("action: shutdown | result: success")

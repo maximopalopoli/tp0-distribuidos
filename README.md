@@ -185,7 +185,7 @@ El script se puede ejecutar corriendo desde la carpeta root del repositorio:
 ```
 ./generar-compose.sh <nombre-archivo-creado> <cantidad-clientes>
 ```
-El script no contempla el no recibir parámetros de entrada, pero es el principal TODO a mejorar.
+En caso de no agregar los parámetros, se imprimira un error indicando la entrada esperada.
 
 ### Ejercicio 2
 El script ahora agrega los volumenes correspondientes a cada cliente o servidor. Corriendo el script del ejercicio 1 y luego levantar usando:
@@ -193,17 +193,24 @@ El script ahora agrega los volumenes correspondientes a cada cliente o servidor.
 ``` bash
 make docker-compose-up
 ```
-TODO: agregar una forma práctica de ver que está cambiando. Se puede probar haciendo `docker exec -it server sh`, modificando `server/config.ini`, y haciendo `cat` del archivo `/config.ini`, pero no se ve aplicado en la práctica. Capaz se puede levantar con el make pero después solo haciendo `docker compose -f docker-compose-dev.yaml stop -t 1`, cambiando en la config el número de logs y luego levantar y probar que la cantidad de logs cambia.
 
 ### Ejercicio 3
 Como según la consigna `Netcat no debe ser instalado en la máquina host`, entonces para el script de validación voy a crear un cliente de prueba que instale netcat cuando se cree. Elegí usar busybox porque es una imagen ligera que incluye netcat dentro de su configuración.
 
 El cliente validador forma parte de la network, por lo que no es necesario exponer el puerto del servidor, y como se usa un container con netcat tampoco es necesario instalar netcat en el host.
 
+El sript se puede probar ejecutándolo:
+
+``` bash
+./validar-echo-server.sh
+```
+
 ### Ejercicio 4
 Los cambios en el cliente y el servidor fueron los siguientes:
 - En el cliente se agregó el método `handleSignals()`, que crea una goroutine que queda a la espera de señales SIGTERM, y en caso de recibirla llama al método `StopClient()`, que cierra un canal `close`, que envía una señal al main loop que hace que se termine en la próxima iteración.
 - En el servidor, a través de la lib signal, en caso de recibir una señal SIGTERM se llama al método `_handle_shutdown()`, que cierra el `_server_socket` y que setea el atributo `is_running` en false, haciendo que en la próxima iteración el main loop se detenga.
+
+Se puede probar yendo a la aplicación docker desktop, y dandole stop a alguno de los containers mientras se imprimen los logs con `make docker-compose-logs`.
 
 ### Ejercicio 5
 El protocolo de comunicación definido entre cliente y servidor consta de los siguientes pasos:

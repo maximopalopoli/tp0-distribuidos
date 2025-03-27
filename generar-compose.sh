@@ -6,6 +6,11 @@
 fileName=$1
 amountOfClients=$2
 
+if [ -z "$amountOfClients" ]; then
+  echo "error: must give parameters. Usage: ./generar-compose.sh <file-name> <clients-amount>"
+  exit 1
+fi
+
 echo "Nombre del archivo de salida: $1"
 echo "Cantidad de clientes: $2"
 
@@ -17,7 +22,6 @@ services:
     entrypoint: python3 /main.py
     environment:
       - PYTHONUNBUFFERED=1
-      - LOGGING_LEVEL=DEBUG
     networks:
       - testing_net
     volumes:
