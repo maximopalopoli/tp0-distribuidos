@@ -17,7 +17,6 @@ services:
     entrypoint: python3 /main.py
     environment:
       - PYTHONUNBUFFERED=1
-      - LOGGING_LEVEL=DEBUG
     networks:
       - testing_net
     volumes:
@@ -31,7 +30,6 @@ for ((i=1; i<=amountOfClients; i++)); do
     entrypoint: /client
     environment:
       - CLI_ID=$i
-      - CLI_LOG_LEVEL=DEBUG
     networks:
       - testing_net
     volumes:
