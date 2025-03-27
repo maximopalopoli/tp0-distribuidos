@@ -213,9 +213,14 @@ Los cambios en el cliente y el servidor fueron los siguientes:
 Se puede probar yendo a la aplicación docker desktop, y dandole stop a alguno de los containers mientras se imprimen los logs con `make docker-compose-logs`.
 
 ### Ejercicio 5
+Para este ejercicio, se modelaron las apuestas en el cliente en la estructura Bet, que es bastante similar a la clase Bet que hay en los utils de python. También se implementó el recibir los campos de la Bet a enviar desde el entorno, porque en los tests del ejercicio se eliminaban esos campos preestablecidos del archivo de configuración de tipo yaml.
 El protocolo de comunicación definido entre cliente y servidor consta de los siguientes pasos:
 1. El cliente inicia la comunicación enviando su config id, que es el id de agencia
 2. El servidor recibe ese mensaje y le devuelve un primer ACK, que incluye el Id para verificación, de formato `OK|ID\n`.
 3. Después de recibir y verificar el Id, el cliente envía el resto de la información sobre la apuesta, en el formato de serialización: `Santiago|Lorca|30904465|1999-03-17|7574\n`
 4. El servidor entonces guarda la apuesta, y en caso de éxito, envía un ACK al cliente que incluye el DNI y el número de apuesta.
 5. El cliente recibe ese ACK y termina el ciclo del protocolo.
+
+Un defecto del modelo de comunicación elegido es que estoy creando una conexión por cada mensaje, pero se soluciona en los ejercicios siguientes.
+
+Tanto para este ejercicio como para los siguientes la forma de probarlo es haciendo `make docker-compose-up`, y ver los logs con `make docker-compose-logs`, cerrando y eliminando los contenedores después de la ejecución con `make docker-compose-down`.

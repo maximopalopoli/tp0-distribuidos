@@ -124,7 +124,6 @@ func (c *Client) StartClientLoop() {
 				log.Errorf("action: receive_initial_ack | result: fail | error: %v", err)
 				return
 			}
-			log.Infof("La info de nacimiento es %v", betInfo.Nacimiento)
 
 			// Send the rest of the bet information in the protocol format
 			message := SerializeBet(betInfo.Nombre, betInfo.Apellido, betInfo.Documento, betInfo.Nacimiento, betInfo.Numero)
