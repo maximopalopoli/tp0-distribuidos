@@ -129,7 +129,7 @@ class Server:
 
         Sets should_shutdown as true and closes server socket, also logging the shutdown.
         """
-        logging.info(f"action: shutdown | signal: {signum} | result: in_progress")
+        logging.info(f"action: shutdown | result: in_progress")
         self.is_running = False
         self._server_socket.close()
         logging.info("action: shutdown | result: success")
