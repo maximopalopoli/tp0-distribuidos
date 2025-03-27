@@ -77,7 +77,7 @@ func (c *Client) StartClientLoop() {
 	c.handleSignals()
 
 	// Open the data file to read the bets
-	filePath := fmt.Sprintf("./data/dataset/agency-%s.csv", c.config.ID)
+	filePath := fmt.Sprintf("./data/agency-%s.csv", c.config.ID)
 	file, err := os.Open(filePath)
 	if err != nil {
 		log.Fatalf(
