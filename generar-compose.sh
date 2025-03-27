@@ -2,9 +2,13 @@
 
 # Recibo el nombre del archivo de salida ($1) y la cantidad de clientes que debería tener ($2)
 
-# TODO: verificar de alguna forma que se hayan recibido parámetros
 fileName=$1
 amountOfClients=$2
+
+if [ -z "$amountOfClients" ]; then
+  echo "error: must give parameters. Usage: ./generar-compose.sh <file-name> <clients-amount>"
+  exit 1
+fi
 
 echo "Nombre del archivo de salida: $1"
 echo "Cantidad de clientes: $2"
@@ -17,7 +21,6 @@ services:
     entrypoint: python3 /main.py
     environment:
       - PYTHONUNBUFFERED=1
-      - LOGGING_LEVEL=DEBUG
     networks:
       - testing_net
     volumes:
@@ -31,7 +34,6 @@ for ((i=1; i<=amountOfClients; i++)); do
     entrypoint: /client
     environment:
       - CLI_ID=$i
-      - CLI_LOG_LEVEL=DEBUG
     networks:
       - testing_net
     volumes:
