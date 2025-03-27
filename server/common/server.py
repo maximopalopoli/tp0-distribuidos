@@ -143,6 +143,8 @@ class Server:
                     break 
                 else:
                     logging.error(f"action: accept_connection | result: fail | error: {e}") 
+        for p in processes:
+            p.join()
 
     def __accept_new_connection(self):
         """
