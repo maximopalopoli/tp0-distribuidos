@@ -22,7 +22,8 @@ class Server:
         self._server_socket.listen(listen_backlog)
         self.is_running = True
 
-        self.finished_agencies: dict[int, socket.socket] = {}
+        self.active_agencies: dict[int, socket.socket] = {}
+        self.finished = 0
 
         signal.signal(signal.SIGTERM, self._handle_shutdown)
 
@@ -37,12 +38,12 @@ class Server:
 
         while self.is_running:
             try:
-                if len(self.finished_agencies) < 5:
+                if len(self.active_agencies) < 5:
                     client_sock = self.__accept_new_connection()
                     # Dont handle the connection if accept failed
                     if client_sock:
                         self.__handle_client_connection(client_sock)
-                if len(self.finished_agencies) == 5:
+                if self.finished == 5:
                     self.send_winners()
                     return
 
@@ -74,8 +75,8 @@ class Server:
                 return
 
             agency_id = int(hello_fields[1])
-            if not agency_id in self.finished_agencies:
-                self.finished_agencies[agency_id] = client_sock
+            if not agency_id in self.active_agencies:
+                self.active_agencies[agency_id] = client_sock
             
             addr = client_sock.getpeername()
             logging.info(f'action: receive_hello_message | result: success | ip: {addr[0]} | agency_id: {agency_id}')
@@ -89,6 +90,7 @@ class Server:
 
                 init_fields = init_msg_data.strip().split('|')
                 if init_fields[0] == "WIN":
+                    self.finished += 1
                     break
                 agency_id = int(init_fields[0])
                 bets_amount = int(init_fields[1])
@@ -123,7 +125,7 @@ class Server:
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
         finally:
-            if agency_id not in self.finished_agencies:
+            if agency_id not in self.active_agencies:
                 client_sock.close()
                 logging.info("action: close_socket_client | result: success")
 
@@ -155,7 +157,7 @@ class Server:
         for curr_agency in range(1,6): # ids of agencies (from 1 to 5)
             filtered_winners = [bet for bet in winners if bet.agency == curr_agency]
 
-            client_socket = self.finished_agencies[curr_agency]
+            client_socket = self.active_agencies[curr_agency]
 
             initial_winner_msg = (str(curr_agency) + "|" + str(len(filtered_winners)) + "\n").encode("utf-8")
             client_socket.sendall(initial_winner_msg)
