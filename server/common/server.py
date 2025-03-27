@@ -53,7 +53,7 @@ class Server:
             logging.error("action: receive_message | result: fail | error: {e}")
         finally:
             client_sock.close()
-            logging.info("action: close_socket_client | result: sucess")
+            logging.info("action: close_socket_client | result: success")
 
     def __accept_new_connection(self):
         """
