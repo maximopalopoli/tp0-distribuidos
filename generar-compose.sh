@@ -31,7 +31,11 @@ for ((i=1; i<=amountOfClients; i++)); do
     entrypoint: /client
     environment:
       - CLI_ID=$i
-      - CLI_LOG_LEVEL=DEBUG
+      - NOMBRE=Juan
+      - APELLIDO=Silva
+      - DOCUMENTO=30303823
+      - NACIMIENTO=1988-10-31
+      - NUMERO=6610
     networks:
       - testing_net
     volumes:

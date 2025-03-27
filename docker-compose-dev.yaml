@@ -18,21 +18,11 @@ services:
     entrypoint: /client
     environment:
       - CLI_ID=1
-      - CLI_LOG_LEVEL=DEBUG
-    networks:
-      - testing_net
-    volumes:
-      - ./client/config.yaml:/config.yaml
-    depends_on:
-      - server
-
-  client2:
-    container_name: client2
-    image: client:latest
-    entrypoint: /client
-    environment:
-      - CLI_ID=2
-      - CLI_LOG_LEVEL=DEBUG
+      - NOMBRE=Juan
+      - APELLIDO=Silva
+      - DOCUMENTO=30303823
+      - NACIMIENTO=1988-10-31
+      - NUMERO=6610
     networks:
       - testing_net
     volumes:

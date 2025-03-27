@@ -70,10 +70,29 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
+func (c *Client) getBetFromEnvironment() Bet {
+	name := os.Getenv("NOMBRE")
+	lastname := os.Getenv("APELLIDO")
+	document := os.Getenv("DOCUMENTO")
+	birthdate := os.Getenv("NACIMIENTO")
+	number := os.Getenv("NUMERO")
+
+	return Bet{
+		name,
+		lastname,
+		document,
+		birthdate,
+		number,
+		c.config.ID,
+	}
+}
+
 // StartClientLoop Send messages to the client until some time threshold is met or a SIGTERM is received
-func (c *Client) StartClientLoop(betInfo Bet) {
+func (c *Client) StartClientLoop() {
 	c.handleSignals()
 
+	betInfo := c.getBetFromEnvironment()
+	
 	// There is an autoincremental msgID to identify every message sent, messages are sent if the threshold has not been surpassed
 	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
 		select {
@@ -105,6 +124,7 @@ func (c *Client) StartClientLoop(betInfo Bet) {
 				log.Errorf("action: receive_initial_ack | result: fail | error: %v", err)
 				return
 			}
+			log.Infof("La info de nacimiento es %v", betInfo.Nacimiento)
 
 			// Send the rest of the bet information in the protocol format
 			message := SerializeBet(betInfo.Nombre, betInfo.Apellido, betInfo.Documento, betInfo.Nacimiento, betInfo.Numero)

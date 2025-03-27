@@ -117,16 +117,6 @@ func main() {
 		LoopPeriod:    v.GetDuration("loop.period"),
 	}
 
-	// Create Bet struct and pass it to the client loop
-	betInfo := common.Bet{
-		Nombre:     v.GetString("nombre"),
-		Apellido:   v.GetString("apellido"),
-		Documento:  v.GetString("documento"),
-		Nacimiento: v.GetString("nacimiento"),
-		Numero:     v.GetString("numero"),
-		Agencia:    v.GetString("id"),
-	}
-
 	client := common.NewClient(clientConfig)
-	client.StartClientLoop(betInfo)
+	client.StartClientLoop()
 }
