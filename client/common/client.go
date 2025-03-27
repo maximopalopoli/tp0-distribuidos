@@ -250,6 +250,7 @@ func (c *Client) finishSendingAndQueryWinners() error {
 		return err
 	}
 
+	// TODO: Improve waiting for response
 	c.conn.SetReadDeadline(time.Now().Add(1000 * time.Second))
 
 	// Protocolo de envío de ganadores: Mando desde el servidor inicialmente el ID de la agencia y la cantidad de ganadores
@@ -268,7 +269,7 @@ func (c *Client) finishSendingAndQueryWinners() error {
 		return err
 	}
 
-	// Send an ok?
+	// TODO: Should send an ok here?
 
 	// Receiving only the winners DNIs, separated by `|`
 	betWinnersDocument, err := reader.ReadString('\n')
