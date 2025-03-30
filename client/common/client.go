@@ -102,7 +102,7 @@ func (c *Client) StartClientLoop() {
 	c.conn.SetReadDeadline(time.Now().Add(100000000 * time.Second))
 
 	idMessage := fmt.Sprintf("HELLO|%s\n", c.config.ID)
-	_, err = c.conn.Write([]byte(idMessage))
+	err = c.sendAllMessage(idMessage)
 	if err != nil {
 		log.Errorf("action: send_hello | result: fail | error: %v", err)
 		return
@@ -200,7 +200,7 @@ func (c *Client) sendBetsBatch(betsBatch []Bet) error {
 
 	// Send the config ID (agencyId) and the batch length first
 	idMessage := fmt.Sprintf("%s|%d\n", c.config.ID, len(betsBatch))
-	_, err := c.conn.Write([]byte(idMessage))
+	err := c.sendAllMessage(idMessage)
 	if err != nil {
 		log.Errorf("action: send_id | result: fail | error: %v", err)
 		return err
@@ -215,7 +215,7 @@ func (c *Client) sendBetsBatch(betsBatch []Bet) error {
 	}
 
 	message := SerializeBetsBatch(betsBatch)
-	_, err = c.conn.Write([]byte(message))
+	err = c.sendAllMessage(message)
 	if err != nil {
 		log.Errorf("action: send_message | result: fail | error: %v", err)
 		return err
@@ -245,7 +245,7 @@ func SerializeBetsBatch(betsBatch []Bet) string {
 func (c *Client) finishSendingAndQueryWinners() error {
 	// Send the finish message to the server, that implies all bets have been sent
 	finishMessage := fmt.Sprintf("WIN|%s\n", c.config.ID)
-	_, err := c.conn.Write([]byte(finishMessage))
+	err := c.sendAllMessage(finishMessage)
 	if err != nil {
 		log.Errorf("action: send_id | result: fail | error: %v", err)
 		return err
@@ -286,6 +286,20 @@ func (c *Client) finishSendingAndQueryWinners() error {
 	}
 
 	log.Info("action: consulta_ganadores | result: success | cant_ganadores: ", winnersAmount)
+
+	return nil
+}
+
+// Sends all message, preventing short writes, returning error in case an error happened while sending it
+func (c *Client) sendAllMessage(message string) error {
+	for len(message) > 0 {
+		number_bytes_sent, err := c.conn.Write([]byte(message))
+		if err != nil {
+			return err
+		}
+
+		message = message[number_bytes_sent:]
+	}
 
 	return nil
 }
