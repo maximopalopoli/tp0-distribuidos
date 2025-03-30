@@ -43,7 +43,7 @@ def handle_client_connection(client_sock, active_agencies, finished, finished_lo
         addr = client_sock.getpeername()
         logging.info(f'action: receive_hello_message | result: success | ip: {addr[0]} | agency_id: {agency_id}')
             
-        # Now we are receiving batches of bets, repeating the logic for each batch, unti we receive the WIN message
+        # Now we are receiving batches of bets, repeating the logic for each batch, unti we receive the WINR message
         while True:
             # Start receiving the agency id
             init_msg_data = receive_data_with_length(client_sock, 7)
@@ -51,7 +51,7 @@ def handle_client_connection(client_sock, active_agencies, finished, finished_lo
                 logging.error(f'action: receive_message | result: fail | error: error while reading agency id')
 
             init_fields = init_msg_data.strip().split('|')
-            if init_fields[0] == "WIN":
+            if init_fields[0] == "WINR":
                 with finished_lock:
                     finished.value += 1
                 break

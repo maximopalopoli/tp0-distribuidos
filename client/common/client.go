@@ -198,10 +198,12 @@ func (c *Client) sendBetsBatch(betsBatch []Bet) error {
 		return nil
 	}
 
+	// Send the config ID (agencyId) and the batch length in bytes first
 	message := SerializeBetsBatch(betsBatch)
-	// Send the config ID (agencyId) and the batch length first
 	idMessage := fmt.Sprintf("%s|%d\n", c.config.ID, len(message))
 
+	// The batch initial message must have a length of 7 bytes, and if number is low does not reach that length, so
+	// we add a `\n` to reach a length of 7
 	if (len(idMessage) < 7) {
 		idMessage = idMessage + "\n"
 	}
@@ -248,7 +250,7 @@ func SerializeBetsBatch(betsBatch []Bet) string {
 
 func (c *Client) finishSendingAndQueryWinners() error {
 	// Send the finish message to the server, that implies all bets have been sent
-	finishMessage := fmt.Sprintf("WIN|%s|\n", c.config.ID)
+	finishMessage := fmt.Sprintf("WINR|%s\n", c.config.ID)
 	err := c.sendAllMessage(finishMessage)
 	if err != nil {
 		log.Errorf("action: send_id | result: fail | error: %v", err)
@@ -271,8 +273,6 @@ func (c *Client) finishSendingAndQueryWinners() error {
 		log.Errorf("action: parse_winners_amount | result: fail | client_id: %v | error: %v", c.config.ID, err)
 		return err
 	}
-
-	// TODO: Should send an ok here?
 
 	// Receiving only the winners DNIs, separated by `|`
 	betWinnersDocument, err := reader.ReadString('\n')
