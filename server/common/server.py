@@ -16,7 +16,7 @@ def deserialize_bet(message: str):
         "numero": fields[4],
     }
 
-def handle_client_connection(client_sock, active_agencies, finished, finished_lock):
+def handle_client_connection(client_sock, active_agencies, finished, finished_lock, write_bets_lock):
     """
     Read message from a specific client socket and closes the socket
 
@@ -78,7 +78,8 @@ def handle_client_connection(client_sock, active_agencies, finished, finished_lo
                 bet = Bet(agency_id, bet_data["nombre"], bet_data["apellido"], bet_data["dni"], bet_data["nacimiento"], bet_data["numero"])            
                 received_bets.append(bet)
 
-            store_bets(received_bets)
+            with write_bets_lock:
+                store_bets(received_bets)
                 
             logging.info(f"action: apuesta_recibida | result: success | cantidad: {bets_amount}")
 
@@ -117,6 +118,8 @@ class Server:
         self.finished = multiprocessing.Value('i', 0)
         self.finished_lock = multiprocessing.Lock()
 
+        self.write_bets_lock = multiprocessing.Lock()
+
         signal.signal(signal.SIGTERM, self._handle_shutdown)
 
     def run(self):
@@ -134,7 +137,7 @@ class Server:
                 if ready_to_read:
                     client_sock = self.__accept_new_connection()
                     if client_sock:
-                        p = multiprocessing.Process(target=handle_client_connection, args=(client_sock, self.active_agencies, self.finished, self.finished_lock))
+                        p = multiprocessing.Process(target=handle_client_connection, args=(client_sock, self.active_agencies, self.finished, self.finished_lock, self.write_bets_lock))
                         p.start()
                         processes.append(p)
                 if self.finished.value == len(self.active_agencies) and len(ready_to_read) == 0:
