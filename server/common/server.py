@@ -25,7 +25,7 @@ def handle_client_connection(client_sock, active_agencies, finished, finished_lo
     """
     try:
         # Receive client hello message
-        hello_msg_data = receive_data(client_sock)
+        hello_msg_data = receive_data_with_length(client_sock, 8)
         if not hello_msg_data:
             logging.error(f'action: receive_hello_message | result: fail | error: error while reading hello message')
             return
@@ -46,7 +46,7 @@ def handle_client_connection(client_sock, active_agencies, finished, finished_lo
         # Now we are receiving batches of bets, repeating the logic for each batch, unti we receive the WIN message
         while True:
             # Start receiving the agency id
-            init_msg_data = receive_data(client_sock)
+            init_msg_data = receive_data_with_length(client_sock, 7)
             if not init_msg_data:
                 logging.error(f'action: receive_message | result: fail | error: error while reading agency id')
 
@@ -57,21 +57,23 @@ def handle_client_connection(client_sock, active_agencies, finished, finished_lo
                 break
 
             agency_id = int(init_fields[0])
-            bets_amount = int(init_fields[1])
-            logging.info(f'action: receive_id | result: success | ip: {addr[0]} | agency_id: {agency_id}| bets_amount: {bets_amount}')
+            batch_len = int(init_fields[1])
+            logging.info(f'action: receive_id | result: success | ip: {addr[0]} | agency_id: {agency_id}| batch_len: {batch_len}')
 
             # Send initial ACK with agency id
             ack_message = f"OK|{agency_id}\n".encode("utf-8")
             client_sock.sendall(ack_message)
 
             received_bets = []
+
+            bet_message = receive_data_with_length(client_sock, batch_len)
+            bets = bet_message.strip().split('\n')
+
             # Receive and deserialize the rest of bet information
-            for i in range(bets_amount):
-                # Receive raw data from socket
-                bet_message = receive_data(client_sock)
-                bet_data = deserialize_bet(bet_message)
+            for new_bet in bets:
+                bet_data = deserialize_bet(new_bet)
                 if len(bet_data) < 5:
-                    logging.error(f"action: apuesta_recibida | result: fail | cantidad: {i}")
+                    logging.error(f"action: apuesta_recibida | result: fail | cantidad: {len(bet_data)}")
                     return
                 
                 # Create and store Bet
@@ -81,30 +83,29 @@ def handle_client_connection(client_sock, active_agencies, finished, finished_lo
             with write_bets_lock:
                 store_bets(received_bets)
                 
-            logging.info(f"action: apuesta_recibida | result: success | cantidad: {bets_amount}")
+            logging.info(f"action: apuesta_recibida | result: success | agency_id: {agency_id}| cantidad: {len(received_bets)}")
 
             # Send final ACK including dni and bet number
             response = f"OK\n".encode("utf-8")
             client_sock.sendall(response)
 
     except OSError as e:
-        logging.error("action: receive_message | result: fail | error: {e}")
+        logging.error(f"action: receive_message | result: fail | error: {e}")
     finally:
         if agency_id not in active_agencies:
             client_sock.close()
             logging.info("action: close_socket_client | result: success")
 
-def receive_data(sock):
-    """Receives data until find a '\n', and returns the data read until that moment."""
-    received_msg = b""
-    while True:
-        data = sock.recv(1)
-        if not data:
-            break
-        received_msg += data
-        if data == b"\n":
-            break
-    return received_msg.decode("utf-8").strip()
+def receive_data_with_length(sock, length):
+    """Receives <length> bytes from socket, and return a string with that data."""
+    buffer = bytearray()
+    while len(buffer) < length:
+        chunk = sock.recv(length - len(buffer))
+        if not chunk:
+            raise ConnectionError("Connection closed unexpectedly")
+        buffer.extend(chunk)
+    return buffer.decode("utf-8").strip()
+
 class Server:
     def __init__(self, port, listen_backlog):
         # Initialize server socket

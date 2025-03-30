@@ -198,8 +198,13 @@ func (c *Client) sendBetsBatch(betsBatch []Bet) error {
 		return nil
 	}
 
+	message := SerializeBetsBatch(betsBatch)
 	// Send the config ID (agencyId) and the batch length first
-	idMessage := fmt.Sprintf("%s|%d\n", c.config.ID, len(betsBatch))
+	idMessage := fmt.Sprintf("%s|%d\n", c.config.ID, len(message))
+
+	if (len(idMessage) < 7) {
+		idMessage = idMessage + "\n"
+	}
 	err := c.sendAllMessage(idMessage)
 	if err != nil {
 		log.Errorf("action: send_id | result: fail | error: %v", err)
@@ -214,7 +219,6 @@ func (c *Client) sendBetsBatch(betsBatch []Bet) error {
 		return err
 	}
 
-	message := SerializeBetsBatch(betsBatch)
 	err = c.sendAllMessage(message)
 	if err != nil {
 		log.Errorf("action: send_message | result: fail | error: %v", err)
@@ -244,7 +248,7 @@ func SerializeBetsBatch(betsBatch []Bet) string {
 
 func (c *Client) finishSendingAndQueryWinners() error {
 	// Send the finish message to the server, that implies all bets have been sent
-	finishMessage := fmt.Sprintf("WIN|%s\n", c.config.ID)
+	finishMessage := fmt.Sprintf("WIN|%s|\n", c.config.ID)
 	err := c.sendAllMessage(finishMessage)
 	if err != nil {
 		log.Errorf("action: send_id | result: fail | error: %v", err)
